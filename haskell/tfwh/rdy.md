@@ -5,7 +5,7 @@
 haskell stack を使う
 
 * [Haskellプログラミング環境構築の概要](https://scrapbox.io/tfwh/Haskell%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E7%92%B0%E5%A2%83%E6%A7%8B%E7%AF%89%E3%81%AE%E6%A6%82%E8%A6%81)
-  * [Ubuntu 16.04]([https://scrapbox.io/tfwh/Ubuntu%2016.04)
+  * [Ubuntu 16.04](https://scrapbox.io/tfwh/Ubuntu%2016.04)
 
 ```
 $ curl -sSL https://get.haskellstack.org/ | sh
