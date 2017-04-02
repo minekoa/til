@@ -98,9 +98,11 @@ crouton trusty  のときは、普通の Ubuntu の日本語化をすれば問�
 
 まずはビルド環境をつくります
 ```
-$ sudo apt install git
+$ sudo apt install git bash-completion
 $ sudo apt build-dep emacs24
 ```
+
+`git` は git, `bash-completion` は、git コマンドの便利なタブ補完です。emacsのビルドに必要な環境は `build-dev enams24` で一気に入ります。
 
 途中で Posix Mail云々きかれるが、「設定なし」を選択。
 
