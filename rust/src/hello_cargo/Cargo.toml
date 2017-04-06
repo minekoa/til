@@ -1,0 +1,7 @@
+[package]
+
+name = "hello"
+version = "0.0.1"
+authores = ["minekoa <mineko.orange@gmail.com>"]
+
+
