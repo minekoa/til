@@ -134,7 +134,7 @@ scenarios_json(Req, State)->
 
 ## 4. ビルドして実行
 
-'''sh
+```sh
 $ rebar3 upgrade
 ===> Verifying dependencies...
 ===> Fetching cowboy ({git,"git://github.com/ninenines/cowboy",
