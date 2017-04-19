@@ -50,18 +50,18 @@ ACPIモードにすると、プリインストールのイメージは読めな�
 
 ## ネットワークがつながらない
 
-インストールは無事おえたのですが、ネットワークにつながりません。`ifconfig` してもデバイスが見えないので、ドライバーの問題。
+インストールは無事おえたのですが、ネットワークにつながりません。`ifconfig` してもワイヤレスアダプターが見えないので、ドライバーの問題。
 
-ググってみれば、以下のスレッドを確認
+ググってみれば、以下のスレッドが。
 
-* [XPS 9365 2-in-1, Ubuntu? : linuxhardware] (https://www.reddit.com/r/linuxhardware/comments/5nckec/xps_9365_2in1_ubuntu/)
+* [XPS 9365 2-in-1, Ubuntu? : linuxhardware](https://www.reddit.com/r/linuxhardware/comments/5nckec/xps_9365_2in1_ubuntu/)
 
 > I have that machine and I installed Ubuntu 16.04 on it. Most things work after you install 4.10 from kernel-ppa and add firmware for wifi and gpu from intel. Two things that do not work:
 > 
 > * normal resume from the sleep (S3). It kind of works but requires holding the power button for over 5s which is really troublesome given that on Windows it wakes up instantly and the power button is very inconvenient to press (small, hard to press)
 > * fingerprint reader doesn't work
 
-...了解。
+...了解です。
 
 ### カーネルのインストール
 
