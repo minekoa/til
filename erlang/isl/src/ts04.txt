@@ -1,0 +1,2 @@
+IC.SEN +- 2.RHi.1 +- VCC
+       |          \- OUT;

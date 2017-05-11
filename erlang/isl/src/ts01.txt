@@ -1,0 +1,6 @@
+IC.SEN +- 2.RHi.1 +- VCC
+       |          \- OUT
+       \- 1.RLo.2 +- GND +- ZZZ
+                  |      \- WWW
+                  |- YYY
+                  \- XXX;
