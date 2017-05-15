@@ -1,0 +1,8 @@
+[package]
+name = "rugit"
+version = "0.1.0"
+authors = ["zoni"]
+
+[dependencies]
+git2 = "0.6"
+
