@@ -36,14 +36,6 @@ fn git_commit(rep_path: &str, message: &str) -> Result<(), git2::Error> {
     let rep_path = Path::new(rep_path);
     let repo     = try!(Repository::open(rep_path));
 
-    // todo: 1st commit のときは見つからないので空リストを渡したい
-    let head_ref    = try!(repo.head());
-    let head_obj    = try!(head_ref.peel(git2::ObjectType::Commit));
-    let head_commit = head_obj.as_commit().unwrap();
-
-    let mut parents = Vec::new();
-    parents.push(head_commit);    
-
     let signature = try!(Signature::now("foo", "bar@bar.com")); // git config で設定された signature を使う場合は repo.signature() を使う
 
     let mut index = try!(repo.index());
@@ -51,12 +43,29 @@ fn git_commit(rep_path: &str, message: &str) -> Result<(), git2::Error> {
     let tree_obj  = try!(repo.find_object(tree_oid, Some(git2::ObjectType::Tree)));
     let tree      = tree_obj.as_tree().unwrap();
 
-    try!(repo.commit(Some("HEAD"),
-                     &signature,           // auther
-                     &signature,           // commiter
-                     &message,             // message
-                     &tree,                // tree
-                     parents.as_slice()));
+    match repo.head() {
+        Ok(head_ref) => {
+            let head_obj    = try!(head_ref.peel(git2::ObjectType::Commit));
+            let head_commit = head_obj.as_commit().unwrap();
+
+            try!(repo.commit(Some("HEAD"),
+                             &signature,           // auther
+                             &signature,           // commiter
+                             &message,             // message
+                             &tree,                // tree
+                             &[head_commit]));
+
+        }
+        Err(_) => {
+            try!(repo.commit(Some("HEAD"),
+                             &signature,           // auther
+                             &signature,           // commiter
+                             &message,             // message
+                             &tree,                // tree
+                             &[]));
+        }
+
+    }
 
     Ok(())
 }
