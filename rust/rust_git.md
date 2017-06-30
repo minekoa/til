@@ -9,6 +9,8 @@ Rust の練習として、この週末に、RustからGitを操作するクラ�
 ライブラリとして [git2-rs](https://github.com/alexcrichton/git2-rs) というのがあるそうな。
 
 
+## `git add` / `git commit`
+
 `init` して、`add`して`commit`する一通りをやってみた。
 
 ```rust
@@ -112,6 +114,8 @@ git2_rs に example があって、init とか add とかはそこを見れば�
 
 この２つの対策が必要。
 
+
+## `git rm`
 
 
 

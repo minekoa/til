@@ -32,6 +32,22 @@ fn git_add(rep_path: &str, fname:&str) -> Result<(), git2::Error> {
     Ok(())
 }
 
+fn git_rm(rep_path: &str, fname: &str) -> Result<(), git2::Error> {
+    let rep_path = Path::new(rep_path);
+
+    let repo      = try!(Repository::open(rep_path));
+    let mut index = try!(repo.index());
+
+    let mut files = Vec::new();
+    files.push(fname.to_string());
+
+//    try!(index.remove_path( Path::new(fname) ); 
+    try!(index.remove_all(files.iter(), None));
+    try!(index.write());
+
+    Ok(())
+}
+
 fn git_commit(rep_path: &str, message: &str) -> Result<(), git2::Error> {
     let rep_path = Path::new(rep_path);
     let repo     = try!(Repository::open(rep_path));
@@ -79,7 +95,7 @@ fn main() {
         Err(err) => println!("Error: {:?}", err),
     }
 
-    print!("git add...");
+    print!("git add (hoge)...");
     match file_save("./tmp/hoge.txt", &"abcdefg".to_string()) {
         Ok(_)    => print!("(file saved)..."),
         Err(err) => println!("Error: {:?}", err),
@@ -90,10 +106,47 @@ fn main() {
         Err(err) => println!("Error: {:?}", err),
     }
 
+    print!("git add(huga) ...");
+    match file_save("./tmp/huga.txt", &"hijklmn".to_string()) {
+        Ok(_)    => print!("(file saved)..."),
+        Err(err) => println!("Error: {:?}", err),
+    }
+
+    match git_add("./tmp", "huga.txt") {
+        Ok(_)    => println!("SUCCESS!"),
+        Err(err) => println!("Error: {:?}", err),
+    }
+
+
     print!("git commit...");
     match git_commit("./tmp", "This is a commit message") {
         Ok(_)    => println!("SUCCESS!"),
         Err(err) => println!("Error: {:?}", err),
     }
+
+    print!("git rm (huga) ...");
+    match git_rm("./tmp", "huga.txt") {
+        Ok(_)    => println!("SUCCESS!"),
+        Err(err) => println!("Error: {:?}", err),
+    }
+    print!("git commit...");
+    match git_commit("./tmp", "This is a commit message2") {
+        Ok(_)    => println!("SUCCESS!"),
+        Err(err) => println!("Error: {:?}", err),
+    }
+
+    print!("git rm (huga2) ...");
+    match git_rm("./tmp", "huga.txt") {
+        Ok(_)    => println!("SUCCESS!"),
+        Err(err) => println!("Error: {:?}", err),
+    }
+    print!("git commit...");
+    match git_commit("./tmp", "This is a commit message3") {
+        Ok(_)    => println!("SUCCESS!"),
+        Err(err) => println!("Error: {:?}", err),
+    }
+    
+    
+
 }
 
