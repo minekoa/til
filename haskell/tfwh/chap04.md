@@ -397,9 +397,88 @@ ramanujanNumbers =
 このやりかただと、d 順になる Ramanujan数 順にするには、、といろいろ試行錯誤したら遅い。
 
 
+### 練習問題F
+
+* `rec` はキーワード
+
+### 練習問題G
+
+これ、オーダー変わらないのでは？
+
+
 ### 練習問題H
 
+```
+take 0 undefined
+take undefined []
+```
 
+```
+take n xs ++ drop n xs = xs
+```
+
+```
+-- f :: a -> ([a], b) -> b
+
+para :: (a -> ([a], b) -> b) -> b -> [a] -> b
+para f e, []     = e
+para f e, (x:xs) = f x (xs, para f e xs)
+```
+
+#### 脱線
+
+take, drop は、List の帰納法ではない。(List, Int) の帰納法で書ける。
+
+para じゃなくってhisto だったら書けそう？とかそこら辺の話は
+
+[somehow-morphisms on fixed point written in Haskell](https://qiita.com/cutsea110/items/69889a99d30b627bc04a)
+
+
+を参考。
+
+### 練習問題I
+
+
+```
+map (f . g) xs = map f (map g xs)
+```
+
+これ問題おかしい。
+同意するのが正しいかじゃなくて、あなたはどれに同意しますか？という問題になっている...。
+
+### 練習問題K
+
+```
+1   cross (f, g) . fork (h, k) = fork (f . h, g . k)
+2   fork (f, g) . h            = fork (f . g, g. h)
+3   fst . cross (f, g) = f . fst
+4   snd . cross (f, g) = g . snd
+```
+
+
+`cross (map f, map g) . unzip = unzip . map (cross (f, g))`　の証明
+
+
+```
+cross (map f, map g) . unzip = unzip . map (cross (f, g))
+{- unzip の展開 -}
+cross (map f, fap g) . fork (map fst, map snd)
+{- 1 -}
+fork (map f . map fst, map g . map snd)
+{- map の function則 -}
+fork (map (f . fst), map (g . snd))
+{- 3 と 4 -}
+fork (map（fst . cross(f，g))，map(snd . map(cross（f，g)))
+{- map の founctor則 展開 -}
+fork (map fst . map (cross (f, g)), map snd . map (cross (f, g)))
+{- 2 -}
+fork (map fst, map snd) . map (cross (f, g))
+{- unzip -}
+unzip .map (cross (f, g))
+```
+
+
+### 練習問題L
 
 
 
