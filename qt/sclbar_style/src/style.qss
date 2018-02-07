@@ -1,0 +1,78 @@
+QScrollBar:horizontal {
+                      
+    background : palevioletred; /* 指定しないとスタイルが外れる */
+    height: 20px;
+    margin: 0px 20px 0px 20px; /* 左右のボタン(add-line, sub-line)の分をマージンに設定する（でないと handle がボタンの上に乗り上げる) */
+}
+
+QScrollBar::handle:horizontal {
+    border-radius: 10px;
+    background : pink;
+    min-width: 20px;
+}
+
+QScrollBar::sub-line:horizontal {
+    width: 20px;
+    background : white;
+    subcontrol-position: left;
+    subcontrol-origin: margin;
+}
+
+QScrollBar::add-line:horizontal {
+    width: 20px;
+    background : black;
+    subcontrol-position: right;
+    subcontrol-origin: margin;
+}
+
+QScrollBar:left-arrow:horizontal,
+QScrollBar::right-arrow:horizontal {
+    width: 3px;
+    height: 3px;                       
+    background: pink;
+}
+
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background: rosybrown;
+}
+
+
+QScrollBar:vertical {
+    background : royalblue;
+    width: 20px;
+    margin: 20px 0px 20px 0px; /* 上下のボタン(add-line, sub-line)の分をマージンに設定する（でないと handle がボタンの上に乗り上げる) */
+}
+
+QScrollBar::handle:vertical {
+    border-radius: 10px;
+    background : powderblue;
+    min-height: 20px;
+}
+
+QScrollBar::sub-line:vertical {
+    height: 20px;
+    background : white;
+    subcontrol-position: top;
+    subcontrol-origin: margin;
+}
+
+QScrollBar::add-line:vertical {
+    height: 20px;
+    background : black;
+    subcontrol-position: bottom;
+    subcontrol-origin: margin;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: steelblue;
+}
+
+QScrollBar:up-arrow:vertical,
+QScrollBar::down-arrow:vertical {
+    width: 3px;
+    height: 3px;                       
+    background: powderblue;
+}
+
