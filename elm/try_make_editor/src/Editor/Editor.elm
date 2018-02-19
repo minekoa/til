@@ -163,20 +163,26 @@ lineNumArea model =
 codeArea : Model -> Html msg
 codeArea model =
     div [ class "code-area" ]
-        [ cursorLayer model.cursor
+        [ --cursorLayer model.cursor
+          cursorLayer2 model
         , codeLayer model.contents
+--        , ruler model
         ]
 
 codeLayer: List String  -> Html msg
 codeLayer contents = 
-    div [class "line-colmn"] <|
+    div [class "lines"] <|
         List.map (λ ln -> div [ class "line"
                                , style [("height", "1em")
                                        ,("text-wrap", "none")]
                                ] [text ln] ) contents
 
+
 cursorLayer : Cursor -> Html msg
 cursorLayer cur =
+    {- 作戦1, ちゃんと場所を計算する
+       rulerはつくったが、DOMから取ってくるのがめんどい。未だ作ってない
+    -}
     div [ class "cursors" 
         , style [("position", "absolute")]
         ]
@@ -199,4 +205,50 @@ cursorLayer cur =
               []
         ]
 
-        
+cursorLayer2 : Model -> Html msg
+cursorLayer2 model =
+    {- 作戦2, [パディング用要素、本物の文字を入れ、hiddenにする][cursol]
+       思いついたのでやってみたらうまく行った
+       けど、みんなこれをやってないの、なにか落とし穴あるからなのかな？
+    -}
+    div [ class "cursors"
+        , style [("position", "absolute")]
+        ]
+        [ div [style [ ("position", "relative")
+                     , ("display" , "inline-flex")
+                     , ("flex-direction", "row")
+                     , ("flex-wrap", "nowrap")
+                     , ("justify-content", "flex-start")
+                     , ("height", "1em")
+
+                     , ("top" , (model.cursor.row |> toString) ++ "em")
+                     , ("left", "0")
+                     ]
+               ]
+               [ ruler model
+               , span [style [ ("background-color", "blue")
+                             , ("opacity", "0.5")
+                             , ("height", "1em")
+                             , ("width", "3px")
+                             ]
+                      ]
+                      []
+               ]
+        ]
+
+
+ruler : Model -> Html msg
+ruler model = 
+    let
+        cur = model.cursor
+        contents = model.contents
+    in
+    span [ id "ruler"
+         , style [ ("position", "relative")
+                 , ("white-space", "nowrap")
+                 , ("visibility", "hidden")                     
+                 ]
+         ]
+         [ line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text]
+
+
