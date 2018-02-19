@@ -17,6 +17,7 @@ main =
 type alias Model =
     { editor : Editor.Model
     , raw : String
+    , raw_buf : String
     }
 
 type Msg
@@ -25,11 +26,13 @@ type Msg
     | MoveBackword
     | MovePrevios
     | MoveNext
+    | Edit String
+    | Insert
     
 
 init : (Model, Cmd Msg)
 init =
-    ( Model (Editor.init "") ""
+    ( Model (Editor.init "") "" ""
     , Cmd.none
     )
 
@@ -62,6 +65,15 @@ update msg model =
                   | editor = Editor.moveNext model.editor
               }
             , Cmd.none)
+        Edit s ->
+            ( {model | raw_buf = s}, Cmd.none )
+        Insert ->
+            ( { model
+                  | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) model.raw_buf
+                  , raw_buf = ""
+              }
+            , Cmd.none)
+            
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
@@ -72,8 +84,15 @@ view model =
     div []
         [ h1 [] [text "TextEditor Sample"]
         , Editor.view model.editor
-        , div [class "modeline"] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"]
+        , div [ class "modeline"
+              , style [ ("background-color","black")
+                      , ("color", "white")
+                      ]
+              ] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"]
         , textarea [onInput RawInput] [text model.raw]
+        , div [] [ textarea [onInput Edit, value model.raw_buf] []
+                 , button [ onClick Insert ] [ text "Insert!" ]
+                 ]
         , div [] [ button [ onClick MoveBackword ] [text "←"]
                  , button [ onClick MovePrevios  ] [text "↑"]
                  , button [ onClick MoveNext     ] [text "↓"]

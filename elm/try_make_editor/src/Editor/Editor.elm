@@ -125,6 +125,63 @@ maxRow : List String -> Int
 maxRow contents =
     (List.length contents) - 1
 
+
+------------------------------------------------------------
+-- edit
+------------------------------------------------------------
+
+
+type EditCommand
+    = Insert (Int, Int) String
+    | Delete (Int, Int)
+    
+
+
+insert: Model -> (Int, Int)  -> String -> Model
+insert model (row, col) text =
+    let
+        contents = model.contents
+        prows = List.take row contents
+        crow  = line row model.contents |> Maybe.withDefault ""
+        nrows = List.drop (row + 1) contents
+
+        texts = (String.lines text)
+        left  = (String.left col crow)
+        right = (String.dropLeft (col) crow)
+
+        car = List.head >> Maybe.withDefault ""
+    in
+        case List.length texts of
+            0 ->
+                model
+            1 ->
+                { model
+                    | contents = prows ++ ((left ++ text ++ right) :: nrows)
+                    , cursor = Cursor row (col + (String.length text))
+                }
+            2 ->
+                let
+                    fst_ln = car texts
+                    lst_ln = car <| List.drop 1 texts
+                in
+                    { model
+                        | contents = prows ++ [ left ++ fst_ln, lst_ln ++ right]
+                                           ++ nrows
+                         , cursor = Cursor (row + 1) (String.length lst_ln)
+                    }
+            n ->
+                let
+                    fst_ln = car texts
+                    lst_ln = car <| List.drop (n - 1) texts
+                in
+                    { model
+                        | contents = prows ++ [ left ++ fst_ln ] ++ (List.drop 1 (List.take (n - 1) texts)) ++ [lst_ln ++ right]
+                                           ++ nrows
+                        , cursor = Cursor (row + n - 1) (String.length lst_ln)
+                    }
+
+
+
 ------------------------------------------------------------
 -- View
 ------------------------------------------------------------
