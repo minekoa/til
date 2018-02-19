@@ -29,7 +29,16 @@ init text =
 
 line : Int -> List String -> Maybe String
 line n lines =
-    head (drop n lines)
+    if n < 0
+    then Nothing
+    else List.head (List.drop n lines)
+
+initCursor : List String -> Cursor
+initCursor contents =             
+    let
+        n = List.length contents
+    in
+        Cursor (if n < 0 then 0 else n) 0
 
 ------------------------------------------------------------
 -- cursor
@@ -39,10 +48,82 @@ moveForward : Model -> Model
 moveForward model =
     let
         cur = model.cursor
-        ln  = model.contents !! cur.row
     in
-       if cur.column < Line.length ln
+        line cur.row model.contents 
+        |> Maybe.andThen
+            ( λ ln -> 
+                case (cur.column < (maxColumn ln) + 1, cur.row < maxRow model.contents) of
+                    (True , _    ) -> Just {cur| column = cur.column + 1}
+                    (False, True ) -> Just {cur| column = 0, row = cur.row +1}
+                    (False, False) -> Just cur
 
+            )
+        |> Maybe.withDefault (initCursor model.contents)
+        |> (λ c -> {model | cursor = c})
+
+
+moveBackward : Model -> Model
+moveBackward model =
+    let
+        cur = model.cursor
+        pln = line (cur.row - 1) model.contents |> Maybe.withDefault ""
+    in
+        line cur.row model.contents 
+        |> Maybe.andThen
+            ( λ ln -> 
+                case (cur.column > 0, cur.row > 0 ) of
+                    (True , _    ) -> Just {cur| column = cur.column - 1}
+                    (False, True ) -> Just {cur| column = (String.length pln), row = cur.row - 1}
+                    (False, False) -> Just cur
+
+            )
+        |> Maybe.withDefault (initCursor model.contents)
+        |> (λ c -> {model | cursor = c})
+
+
+
+movePrevios : Model -> Model
+movePrevios model =
+    let
+        cur = model.cursor
+    in
+        line (cur.row - 1) model.contents 
+        |> Maybe.andThen
+            ( λ ln -> 
+                case cur.column < (maxColumn ln) + 1 of
+                    True  -> Just {cur| row = cur.row - 1}
+                    False -> Just {cur| row = cur.row - 1, column = (maxColumn ln) + 1}
+            )
+        |> Maybe.withDefault cur
+        |> (λ c -> {model | cursor = c})
+
+
+
+moveNext : Model -> Model
+moveNext model =
+    let
+        cur = model.cursor
+    in
+        line (cur.row + 1) model.contents 
+        |> Maybe.andThen
+            ( λ ln -> 
+                case cur.column < (maxColumn ln) + 1 of
+                    True  -> Just {cur| row = cur.row + 1}
+                    False -> Just {cur| row = cur.row + 1, column = (maxColumn ln) + 1}
+            )
+        |> Maybe.withDefault cur
+        |> (λ c -> {model | cursor = c})
+
+
+-- Tool
+
+maxColumn: String -> Int
+maxColumn line =
+    (String.length line) - 1
+
+maxRow : List String -> Int
+maxRow contents =
+    (List.length contents) - 1
 
 ------------------------------------------------------------
 -- View
@@ -51,28 +132,71 @@ moveForward model =
 view : Model -> Html msg
 view model =
     div [class "editor"]
-        [ codeLayer model.contents ]
+        [ presentation model ]
 
-codeLayer: List String  -> Html msg
-codeLayer contents = 
+presentation : Model -> Html msg
+presentation model =
     div [ style [ ("display", "flex"), ("flex-direction", "row"), ("flex-wrap", "no-wrap")
                 , ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                 ]
         ]
-        [ div [ class "line-num-colmn"
-              , style [ ("text-align", "right")
-                      , ("padding-right", "0.2em")]
-              ] <|
-              List.map
-                  (λ n -> div [ class "line-num"
-                              , style [ ("height", "1em")
-                                      , ("text-wrap", "none")]
-                              ] [ text (toString n) ])
-                  (List.range 1 (List.length contents))
-        , div [class "line-colmn"] <|
-              List.map (λ ln -> div [ class "line"
-                                    , style [("height", "1em")
-                                            ,("text-wrap", "none")]
-                                    ] [text ln] ) contents
+        [ lineNumArea model
+        , codeArea model
         ]
 
+lineNumArea : Model -> Html msg
+lineNumArea model =
+    let
+        contents = model.contents
+    in
+        div [ class "line-num-area"
+            , style [ ("text-align", "right")
+                    , ("padding-right", "0.2em")]
+            ] <|
+            List.map
+                (λ n -> div [ class "line-num"
+                             , style [ ("height", "1em")
+                                     , ("text-wrap", "none")]
+                             ] [ text (toString n) ])
+                (List.range 1 (List.length contents))
+
+codeArea : Model -> Html msg
+codeArea model =
+    div [ class "code-area" ]
+        [ cursorLayer model.cursor
+        , codeLayer model.contents
+        ]
+
+codeLayer: List String  -> Html msg
+codeLayer contents = 
+    div [class "line-colmn"] <|
+        List.map (λ ln -> div [ class "line"
+                               , style [("height", "1em")
+                                       ,("text-wrap", "none")]
+                               ] [text ln] ) contents
+
+cursorLayer : Cursor -> Html msg
+cursorLayer cur =
+    div [ class "cursors" 
+        , style [("position", "absolute")]
+        ]
+        [ div [ class "cursor"
+              , style [ ("position", "relative")
+
+                      , ("background-color", "red")
+                      , ("opacity", "0.5")
+
+                      , ("height", "1em")
+                      , ("width" , "0.5em")
+
+                      , ("top" , (cur.row |> toString) ++ "em")
+                      , ("left", (cur.column |> toString) ++ "em")
+
+
+                      , ("z-index", "1")
+                      ]
+              ]
+              []
+        ]
+
+        
