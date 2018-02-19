@@ -28,6 +28,7 @@ type Msg
     | MoveNext
     | Edit String
     | Insert
+    | Backspace
     
 
 init : (Model, Cmd Msg)
@@ -73,6 +74,12 @@ update msg model =
                   , raw_buf = ""
               }
             , Cmd.none)
+        Backspace ->
+            ( { model
+                  | editor = Editor.backspace model.editor (model.editor.cursor.row, model.editor.cursor.column)
+                  , raw_buf = ""
+              }
+            , Cmd.none)
             
 
 subscriptions : Model -> Sub Msg
@@ -92,6 +99,7 @@ view model =
         , textarea [onInput RawInput] [text model.raw]
         , div [] [ textarea [onInput Edit, value model.raw_buf] []
                  , button [ onClick Insert ] [ text "Insert!" ]
+                 , button [ onClick Backspace ] [ text "Backspace" ]
                  ]
         , div [] [ button [ onClick MoveBackword ] [text "←"]
                  , button [ onClick MovePrevios  ] [text "↑"]

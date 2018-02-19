@@ -181,6 +181,36 @@ insert model (row, col) text =
                     }
 
 
+backspace: Model -> (Int, Int) -> Model
+backspace model (row, col) =
+    case (row, col) of
+        (0, 0) ->
+            model
+        (_, 0) ->
+            let
+                prows  = List.take (row - 1) model.contents
+                crow   = List.drop (row - 1) model.contents |> List.take 2 |> String.concat
+                nrows  = List.drop (row + 1) model.contents
+
+                n_col  = List.drop (row - 1) model.contents |> List.head |> Maybe.withDefault "" |> String.length
+            in
+                { model
+                    | contents = prows ++ (crow :: nrows )
+                    , cursor = Cursor (row - 1) (n_col)
+                }
+        (_, n) ->
+            let
+                prows = List.take row model.contents
+                crow  = line row model.contents |> Maybe.withDefault ""
+                nrows = List.drop (row + 1) model.contents
+
+                left  = (String.left (col - 1) crow)
+                right = (String.dropLeft (col) crow)
+            in
+                { model
+                    | contents = prows ++ ((left ++ right) :: nrows)
+                    , cursor = Cursor row  (col - 1)
+                }
 
 ------------------------------------------------------------
 -- View
@@ -230,8 +260,10 @@ codeLayer: List String  -> Html msg
 codeLayer contents = 
     div [class "lines"] <|
         List.map (λ ln -> div [ class "line"
-                               , style [("height", "1em")
-                                       ,("text-wrap", "none")]
+                               , style [ ("height", "1em")
+                                       , ("text-wrap", "none")
+                                       , ("white-space", "pre")
+                                       ]
                                ] [text ln] ) contents
 
 
@@ -302,7 +334,7 @@ ruler model =
     in
     span [ id "ruler"
          , style [ ("position", "relative")
-                 , ("white-space", "nowrap")
+                 , ("white-space", "pre")
                  , ("visibility", "hidden")                     
                  ]
          ]
