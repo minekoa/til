@@ -2,6 +2,8 @@
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Json.Encode as Encode
+import Json.Decode as Json
 
 import Editor.Editor as Editor
 
@@ -27,8 +29,9 @@ type Msg
     | MoveBackword
     | MovePrevios
     | MoveNext
-    | Insert String
     | Backspace
+    | Insert String
+    | KeyEvent Int
     
 
 init : (Model, Cmd Msg)
@@ -67,6 +70,13 @@ update msg model =
               }
             , Cmd.none)
 
+        Backspace ->
+            ( { model
+                  | editor = Editor.backspace model.editor (model.editor.cursor.row, model.editor.cursor.column)
+                  , raw_buf = ""
+              }
+            , Cmd.none)
+
         Insert s ->
             ( { model
                   | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) (String.right 1 s)
@@ -75,17 +85,56 @@ update msg model =
               }
             , Cmd.none)
 
-        Backspace ->
+        KeyEvent code ->
+            keyInput code model
+
+
+keyInput : Int -> Model -> (Model, Cmd Msg)
+keyInput code model =
+    case code of
+        37 -> -- '←'
+            ( { model
+                  | editor = Editor.moveBackward model.editor
+              }
+            , Cmd.none)
+        38 -> -- '↑'
+            ( { model
+                  | editor = Editor.movePrevios model.editor
+              }
+            , Cmd.none)
+        39 -> -- '→'
+            ( { model
+                  | editor = Editor.moveForward model.editor
+              }
+            , Cmd.none)
+        40 -> -- '↓'
+            ( { model
+                  | editor = Editor.moveNext model.editor
+              }
+            , Cmd.none)
+        8 -> -- bs
             ( { model
                   | editor = Editor.backspace model.editor (model.editor.cursor.row, model.editor.cursor.column)
                   , raw_buf = ""
               }
             , Cmd.none)
-            
+        _ ->
+            ( model, Cmd.none)
+
+
+--        13 -> -- Enter
+--            (newLine model, Cmd.none)
+
+
+
+
+
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.none
+
 
 view : Model -> Html Msg
 view model =
@@ -104,7 +153,9 @@ view model =
                       , ("color", "white")
                       ]
               ] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"]
-        , div [] [ textarea [onInput Insert, value model.raw_buf] []
+        , div [] [ textarea [ onInput Insert
+                            , onKeyDown KeyEvent
+                            , value model.raw_buf] []
                  , button [ onClick Backspace ] [ text "Backspace" ]
                  ]
         , div [] [ button [ onClick MoveBackword ] [text "←"]
@@ -120,3 +171,8 @@ view model =
                       ]
               ] [ text model.hist ]
         ]
+
+onKeyDown : (Int -> msg) -> Attribute msg
+onKeyDown tagger =
+    on "keydown" (Json.map tagger keyCode)
+
