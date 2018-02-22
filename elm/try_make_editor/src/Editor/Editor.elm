@@ -17,6 +17,7 @@ type alias Cursor =
 type alias Model =
     { cursor : Cursor
     , contents : List String
+    , compositionData : Maybe String --IMEで返還中の未確定文字
     , history : Maybe String
     }
 
@@ -24,6 +25,7 @@ init : String -> Model
 init text =
     Model (Cursor 0 0)
           (String.lines text)
+          Nothing
           Nothing
 
 
@@ -316,6 +318,16 @@ cursorLayer2 model =
                      ]
                ]
                [ ruler model
+               , (case model.compositionData of
+                      Just s ->
+                          div [ class "composition_data"
+                              , style [ ("color", "blue")
+                                      , ("text-decoration", "underline")
+                                      ]
+                              ] [ text s ]
+                      Nothing ->
+                          text ""
+                 )
                , span [style [ ("background-color", "blue")
                              , ("opacity", "0.5")
                              , ("height", "1em")

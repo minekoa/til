@@ -22,7 +22,6 @@ type alias Model =
     , hist : String
     , enableIME : Bool
     , previosKeyEvent : KeyEventKind
-    , ime_s : String
     }
 
 type KeyEventKind
@@ -48,7 +47,7 @@ type Msg
 
 init : (Model, Cmd Msg)
 init =
-    ( Model (Editor.init "") "" "" False KeyUpEvent ""
+    ( Model (Editor.init "") "" "" False KeyUpEvent
     , Cmd.none
     )
 
@@ -91,8 +90,9 @@ update msg model =
         Insert s ->
             case model.enableIME of
                 True ->
+                    let editor = model.editor in
                     ( { model
-                          | ime_s = s
+                          | editor = {editor | compositionData = Just s}
                           , raw_buf =  s
                           , hist = ("<<" ++ s ++ ">> ") ++ model.hist
                       }
@@ -200,8 +200,12 @@ keyUp code model =
     case code of
         13 -> -- Enter
             if model.previosKeyEvent == KeyDownEvent then
+                let
+                    e1 = model.editor
+                    e2 = {e1 | compositionData = Nothing}
+                in
                 ( { model
-                      | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) model.ime_s
+                      | editor = Editor.insert e2 (e2.cursor.row, e2.cursor.column) (Maybe.withDefault "" e1.compositionData)
                       , raw_buf = ""
                       , previosKeyEvent = KeyUpEvent
                       , hist = "U " ++ model.hist
@@ -241,11 +245,14 @@ compositionUpdate data model =
 
 compositionEnd : String -> Model -> (Model, Cmd Msg)
 compositionEnd data model =
+    let
+        e1 = model.editor
+        e2 = {e1 | compositionData = Nothing}
+    in
     ( { model
-          | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) model.ime_s
+          | editor = Editor.insert e2 (e2.cursor.row, e2.cursor.column) (Maybe.withDefault "" e1.compositionData)
           , raw_buf = ""
           , hist = "Ce{" ++ data ++ "} " ++ model.hist
-          , ime_s = ""
           , enableIME = False
       }
     , Cmd.none )
@@ -273,7 +280,7 @@ view model =
                       , ("color", "white")
                       ]
               ] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"
-                , text <| if model.enableIME then ("[IME] " ++ model.ime_s) else "" 
+                , text <| if model.enableIME then ("[IME] " ++ (Maybe.withDefault "" model.editor.compositionData) ) else "" 
                 ]
         , div [] [ textarea [ onInput Insert
                             , onKeyDown KeyDown
