@@ -18,10 +18,17 @@ main =
 
 type alias Model =
     { editor : Editor.Model
-    , raw : String
     , raw_buf : String
     , hist : String
+    , enableIME : Bool
+    , previosKeyEvent : KeyEventKind
+    , ime_s : String
     }
+
+type KeyEventKind
+    = KeyDownEvent
+    | KeyPressEvent
+    | KeyUpEvent
 
 type Msg
     = RawInput String
@@ -31,12 +38,17 @@ type Msg
     | MoveNext
     | Backspace
     | Insert String
-    | KeyEvent Int
-    
+    | KeyDown Int
+    | KeyPress Int
+    | KeyUp Int
+    | CompositionStart String
+    | CompositionUpdate String
+    | CompositionEnd String
+
 
 init : (Model, Cmd Msg)
 init =
-    ( Model (Editor.init "") "" "" ""
+    ( Model (Editor.init "") "" "" False KeyUpEvent ""
     , Cmd.none
     )
 
@@ -45,9 +57,9 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         RawInput txt ->
-            ({ model
-                 | editor = Editor.init txt
-                 , raw = txt}
+            ( { model
+                  | editor = Editor.init txt
+              }
             , Cmd.none)
         MoveForward ->
             ( { model
@@ -73,62 +85,170 @@ update msg model =
         Backspace ->
             ( { model
                   | editor = Editor.backspace model.editor (model.editor.cursor.row, model.editor.cursor.column)
-                  , raw_buf = ""
               }
             , Cmd.none)
 
         Insert s ->
-            ( { model
-                  | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) (String.right 1 s)
-                  , raw_buf = ""
-                  , hist = ("(" ++ (String.right 1 s) ++ ") ") ++ model.hist
-              }
-            , Cmd.none)
+            case model.enableIME of
+                True ->
+                    ( { model
+                          | ime_s = s
+                          , raw_buf =  s
+                          , hist = ("<<" ++ s ++ ">> ") ++ model.hist
+                      }
+                    , Cmd.none )
+                False ->
+                    ( { model
+                          | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) (String.right 1 s)
+                          , raw_buf =  ""
+                          , hist = ("(" ++ (String.right 1 s) ++ ") ") ++ model.hist
+                      }
+                    , Cmd.none)
 
-        KeyEvent code ->
-            keyInput code model
+        KeyDown code ->
+            keyDown code model
+
+        KeyPress code ->
+            keyPress code model
+
+        KeyUp code ->
+            keyUp code model
+
+        CompositionStart data ->
+            compositionStart data model
+
+        CompositionUpdate data ->
+            compositionUpdate data model
+
+        CompositionEnd data ->
+            compositionEnd data model
 
 
-keyInput : Int -> Model -> (Model, Cmd Msg)
-keyInput code model =
+keyDown : Int -> Model -> (Model, Cmd Msg)
+keyDown code model =
     case code of
         37 -> -- '←'
             ( { model
                   | editor = Editor.moveBackward model.editor
+                  , enableIME = False
+                  , previosKeyEvent = KeyDownEvent
+                  , hist = "D " ++ model.hist
               }
             , Cmd.none)
         38 -> -- '↑'
             ( { model
                   | editor = Editor.movePrevios model.editor
+                  , enableIME = False
+                  , previosKeyEvent = KeyDownEvent
+                  , hist = "D " ++ model.hist
               }
             , Cmd.none)
         39 -> -- '→'
             ( { model
                   | editor = Editor.moveForward model.editor
+                  , enableIME = False
+                  , previosKeyEvent = KeyDownEvent
+                  , hist = "D " ++ model.hist
               }
             , Cmd.none)
         40 -> -- '↓'
             ( { model
                   | editor = Editor.moveNext model.editor
+                  , enableIME = False
+                  , previosKeyEvent = KeyDownEvent
+                  , hist = "D " ++ model.hist
               }
             , Cmd.none)
         8 -> -- bs
             ( { model
                   | editor = Editor.backspace model.editor (model.editor.cursor.row, model.editor.cursor.column)
-                  , raw_buf = ""
+                  , enableIME = False
+                  , previosKeyEvent = KeyDownEvent
+                  , hist = "D " ++ model.hist
               }
             , Cmd.none)
+        229 -> -- ime on
+            ( { model
+                  | enableIME = True
+                  , previosKeyEvent = KeyDownEvent
+                  , hist = "D " ++ model.hist
+              }
+            , Cmd.none
+            )
         _ ->
-            ( model, Cmd.none)
+            ( { model
+                  | enableIME = False
+                  , enableIME = False
+                  , previosKeyEvent = KeyDownEvent
+                  , hist = "D " ++ model.hist
+              }
+            , Cmd.none)
 
 
---        13 -> -- Enter
---            (newLine model, Cmd.none)
+keyPress : Int -> Model -> (Model, Cmd Msg)
+keyPress code model =
+    case code of
+        _ ->
+            ( { model
+                  | previosKeyEvent = KeyPressEvent
+                  , hist = "P " ++ model.hist
+              }
+            , Cmd.none)
+
+keyUp : Int -> Model -> (Model, Cmd Msg)
+keyUp code model =
+    case code of
+        13 -> -- Enter
+            if model.previosKeyEvent == KeyDownEvent then
+                ( { model
+                      | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) model.ime_s
+                      , raw_buf = ""
+                      , previosKeyEvent = KeyUpEvent
+                      , hist = "U " ++ model.hist
+                      , enableIME = False
+                  }
+                , Cmd.none )
+            else 
+                ( { model
+                      | previosKeyEvent = KeyUpEvent
+                      , hist = "U " ++ model.hist
+                  }
+                , Cmd.none)
+        _ ->
+            ( { model
+                  | previosKeyEvent = KeyUpEvent
+                  , hist = "U " ++ model.hist
+              }
+            , Cmd.none)
+
+compositionStart : String -> Model -> (Model, Cmd Msg)
+compositionStart data model =
+    ( { model
+          | enableIME = True
+          , hist = "Cs{" ++ data ++ "} " ++ model.hist
+      }
+    , Cmd.none
+    )
+
+compositionUpdate : String -> Model -> (Model, Cmd Msg)
+compositionUpdate data model =
+    ( { model
+          | hist = "Cu{" ++ data ++ "} " ++ model.hist
+      }
+    , Cmd.none
+    )
 
 
-
-
-
+compositionEnd : String -> Model -> (Model, Cmd Msg)
+compositionEnd data model =
+    ( { model
+          | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) model.ime_s
+          , raw_buf = ""
+          , hist = "Ce{" ++ data ++ "} " ++ model.hist
+          , ime_s = ""
+          , enableIME = False
+      }
+    , Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -152,9 +272,16 @@ view model =
               , style [ ("background-color","black")
                       , ("color", "white")
                       ]
-              ] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"]
+              ] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"
+                , text <| if model.enableIME then ("[IME] " ++ model.ime_s) else "" 
+                ]
         , div [] [ textarea [ onInput Insert
-                            , onKeyDown KeyEvent
+                            , onKeyDown KeyDown
+                            , onKeyPress KeyPress
+                            , onKeyUp KeyUp
+                            , onCompositionStart CompositionStart
+                            , onCompositionUpdate CompositionUpdate
+                            , onCompositionEnd CompositionEnd
                             , value model.raw_buf] []
                  , button [ onClick Backspace ] [ text "Backspace" ]
                  ]
@@ -175,4 +302,26 @@ view model =
 onKeyDown : (Int -> msg) -> Attribute msg
 onKeyDown tagger =
     on "keydown" (Json.map tagger keyCode)
+
+onKeyPress : (Int -> msg) -> Attribute msg
+onKeyPress tagger =
+    on "keypress" (Json.map tagger keyCode)
+
+onKeyUp: (Int -> msg) -> Attribute msg
+onKeyUp tagger =
+    on "keyup" (Json.map tagger keyCode)
+
+onCompositionStart: (String -> msg) -> Attribute msg
+onCompositionStart tagger =
+    on "compositionstart" (Json.map tagger (Json.field "data" Json.string))
+
+onCompositionEnd: (String -> msg) -> Attribute msg
+onCompositionEnd tagger =
+    on "compositionend" (Json.map tagger (Json.field "data" Json.string))
+
+
+onCompositionUpdate: (String -> msg) -> Attribute msg
+onCompositionUpdate tagger =
+    on "compositionend" (Json.map tagger (Json.field "data" Json.string))
+
 
