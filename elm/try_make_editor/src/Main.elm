@@ -18,6 +18,7 @@ type alias Model =
     { editor : Editor.Model
     , raw : String
     , raw_buf : String
+    , hist : String
     }
 
 type Msg
@@ -26,14 +27,13 @@ type Msg
     | MoveBackword
     | MovePrevios
     | MoveNext
-    | Edit String
-    | Insert
+    | Insert String
     | Backspace
     
 
 init : (Model, Cmd Msg)
 init =
-    ( Model (Editor.init "") "" ""
+    ( Model (Editor.init "") "" "" ""
     , Cmd.none
     )
 
@@ -66,14 +66,15 @@ update msg model =
                   | editor = Editor.moveNext model.editor
               }
             , Cmd.none)
-        Edit s ->
-            ( {model | raw_buf = s}, Cmd.none )
-        Insert ->
+
+        Insert s ->
             ( { model
-                  | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) model.raw_buf
+                  | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) (String.right 1 s)
                   , raw_buf = ""
+                  , hist = ("(" ++ (String.right 1 s) ++ ") ") ++ model.hist
               }
             , Cmd.none)
+
         Backspace ->
             ( { model
                   | editor = Editor.backspace model.editor (model.editor.cursor.row, model.editor.cursor.column)
@@ -88,17 +89,22 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div []
+    div [ style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
+                , ("display", "flex"), ("flex-direction", "column")
+                ]
+        ]
         [ h1 [] [text "TextEditor Sample"]
-        , Editor.view model.editor
+        , div [ style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
+                      , ("flex-grow", "8")
+                      , ("overflow","auto")
+                      ]
+              ] [ Editor.view model.editor ]
         , div [ class "modeline"
               , style [ ("background-color","black")
                       , ("color", "white")
                       ]
               ] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"]
-        , textarea [onInput RawInput] [text model.raw]
-        , div [] [ textarea [onInput Edit, value model.raw_buf] []
-                 , button [ onClick Insert ] [ text "Insert!" ]
+        , div [] [ textarea [onInput Insert, value model.raw_buf] []
                  , button [ onClick Backspace ] [ text "Backspace" ]
                  ]
         , div [] [ button [ onClick MoveBackword ] [text "←"]
@@ -106,4 +112,11 @@ view model =
                  , button [ onClick MoveNext     ] [text "↓"]
                  , button [ onClick MoveForward  ] [text "→"]
                  ]
+        , div [ style [ ("overflow","scroll")
+                      , ("width", "calc( 100% - 2px )")
+                      , ("border", "1px solid black")
+                      , ("flex-grow", "3")
+                      , ("min-height", "3em")
+                      ]
+              ] [ text model.hist ]
         ]
