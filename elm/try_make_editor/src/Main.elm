@@ -1,4 +1,3 @@
-
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -38,8 +37,6 @@ type Msg
     | Backspace
     | Insert String
     | KeyDown Int
-    | KeyPress Int
-    | KeyUp Int
     | CompositionStart String
     | CompositionUpdate String
     | CompositionEnd String
@@ -92,8 +89,7 @@ update msg model =
                 True ->
                     let editor = model.editor in
                     ( { model
-                          | editor = {editor | compositionData = Just s}
-                          , raw_buf =  s
+                          | raw_buf =  s
                           , hist = ("<<" ++ s ++ ">> ") ++ model.hist
                       }
                     , Cmd.none )
@@ -107,12 +103,6 @@ update msg model =
 
         KeyDown code ->
             keyDown code model
-
-        KeyPress code ->
-            keyPress code model
-
-        KeyUp code ->
-            keyUp code model
 
         CompositionStart data ->
             compositionStart data model
@@ -130,7 +120,6 @@ keyDown code model =
         37 -> -- '←'
             ( { model
                   | editor = Editor.moveBackward model.editor
-                  , enableIME = False
                   , previosKeyEvent = KeyDownEvent
                   , hist = "D " ++ model.hist
               }
@@ -138,7 +127,6 @@ keyDown code model =
         38 -> -- '↑'
             ( { model
                   | editor = Editor.movePrevios model.editor
-                  , enableIME = False
                   , previosKeyEvent = KeyDownEvent
                   , hist = "D " ++ model.hist
               }
@@ -146,7 +134,6 @@ keyDown code model =
         39 -> -- '→'
             ( { model
                   | editor = Editor.moveForward model.editor
-                  , enableIME = False
                   , previosKeyEvent = KeyDownEvent
                   , hist = "D " ++ model.hist
               }
@@ -154,7 +141,6 @@ keyDown code model =
         40 -> -- '↓'
             ( { model
                   | editor = Editor.moveNext model.editor
-                  , enableIME = False
                   , previosKeyEvent = KeyDownEvent
                   , hist = "D " ++ model.hist
               }
@@ -167,19 +153,10 @@ keyDown code model =
                   , hist = "D " ++ model.hist
               }
             , Cmd.none)
-        229 -> -- ime on
-            ( { model
-                  | enableIME = True
-                  , previosKeyEvent = KeyDownEvent
-                  , hist = "D " ++ model.hist
-              }
-            , Cmd.none
-            )
+
         _ ->
             ( { model
-                  | enableIME = False
-                  , enableIME = False
-                  , previosKeyEvent = KeyDownEvent
+                  | previosKeyEvent = KeyDownEvent
                   , hist = "D " ++ model.hist
               }
             , Cmd.none)
@@ -261,7 +238,7 @@ compositionEnd data model =
         e2 = {e1 | compositionData = Nothing}
     in
     ( { model
-          | editor = Editor.insert e2 (e2.cursor.row, e2.cursor.column) (Maybe.withDefault "" e1.compositionData)
+          | editor = Editor.insert e2 (e2.cursor.row, e2.cursor.column) data
           , raw_buf = ""
           , hist = "Ce{" ++ data ++ "} " ++ model.hist
           , enableIME = False
@@ -295,8 +272,6 @@ view model =
                 ]
         , div [] [ textarea [ onInput Insert
                             , onKeyDown KeyDown
-                            , onKeyPress KeyPress
-                            , onKeyUp KeyUp
                             , onCompositionStart CompositionStart
                             , onCompositionUpdate CompositionUpdate
                             , onCompositionEnd CompositionEnd
@@ -337,9 +312,8 @@ onCompositionEnd: (String -> msg) -> Attribute msg
 onCompositionEnd tagger =
     on "compositionend" (Json.map tagger (Json.field "data" Json.string))
 
-
 onCompositionUpdate: (String -> msg) -> Attribute msg
 onCompositionUpdate tagger =
-    on "compositionend" (Json.map tagger (Json.field "data" Json.string))
+    on "compositionupdate" (Json.map tagger (Json.field "data" Json.string))
 
 
