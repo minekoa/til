@@ -227,8 +227,14 @@ keyUp code model =
 
 compositionStart : String -> Model -> (Model, Cmd Msg)
 compositionStart data model =
+    let
+        e1 = model.editor
+        e2 = {e1 | compositionData = Just(data)}
+    in
     ( { model
           | enableIME = True
+          , raw_buf = ""
+          , editor = e2
           , hist = "Cs{" ++ data ++ "} " ++ model.hist
       }
     , Cmd.none
@@ -236,8 +242,13 @@ compositionStart data model =
 
 compositionUpdate : String -> Model -> (Model, Cmd Msg)
 compositionUpdate data model =
+    let
+        e1 = model.editor
+        e2 = {e1 | compositionData = Just(data)}
+    in
     ( { model
           | hist = "Cu{" ++ data ++ "} " ++ model.hist
+          , editor = e2
       }
     , Cmd.none
     )

@@ -3,11 +3,12 @@ ELM_PACKAGE=elm-package
 
 SRC_DIR=src
 OUT_DIR=dist
-TARGET=index.html
+TARGET=main.js
 
 .PHONY: all env compile release clean
 
-all: $(OUT_DIR)/index.html
+all: $(OUT_DIR)/$(TARGET)
+	cp index.html $(OUT_DIR)/index.html
 
 
 env:
