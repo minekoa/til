@@ -5,6 +5,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Json
 
+
 import Native.Mice
 
 {-| This module is simple texteditor.
@@ -60,7 +61,7 @@ initCursor contents =
 
 type Msg
     = Input String
-    | KeyDown Int
+    | KeyDown KeyboardEvent
     | CompositionStart String
     | CompositionUpdate String
     | CompositionEnd String
@@ -106,31 +107,33 @@ update msg model =
             ( {model | focus = doFocus (model.id ++ "-input")}
             , Cmd.none )
 
-keyDown : Int -> Model -> (Model, Cmd Msg)
-keyDown code model =
-    case code of
+
+keyDown : KeyboardEvent -> Model -> (Model, Cmd Msg)
+keyDown e model =
+    case e.keyCode of
         37 -> -- '←'
             ( moveBackward model
-              |> eventMemorize "D"
+              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
             , Cmd.none )
         38 -> -- '↑'
             ( movePrevios model
-              |> eventMemorize "D"
+              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
             , Cmd.none)
         39 -> -- '→'
             ( moveForward model
-              |> eventMemorize "D"
+              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
             , Cmd.none)
         40 -> -- '↓'
             ( moveNext model
-              |> eventMemorize "D"
+              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
             , Cmd.none)
         8 -> -- bs
             ( backspace model (model.cursor.row, model.cursor.column)
-              |> eventMemorize "D"
+              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
             , Cmd.none)
         _ ->
-            ( eventMemorize "D" model
+            ( model
+              |> eventMemorize ("D:"++ keyboarEvent_toString e)
             , Cmd.none)
 
 compositionStart : String -> Model -> (Model, Cmd Msg)
@@ -370,6 +373,7 @@ presentation model =
         , onFocusIn FocusIn
         , onFocusOut FocusOut
         , onClick SetFocus
+--        , contenteditable True
         ]
         [ lineNumArea model
         , codeArea model
@@ -521,10 +525,40 @@ cursorView model =
 ------------------------------------------------------------
 -- html events (extra)
 ------------------------------------------------------------
+
+type alias KeyboardEvent = 
+    { altKey : Bool
+    , ctrlKey : Bool
+    , keyCode : Int
+    , metaKey : Bool
+    , repeat : Bool
+    , shiftKey : Bool
+    }
+
+keyboarEvent_toString : KeyboardEvent -> String
+keyboarEvent_toString e =
+    String.concat
+        [ if e.ctrlKey then "C-" else ""
+        , if e.altKey then "A-" else ""
+        , if e.metaKey then "M-" else ""
+        , if e.shiftKey then "S-"else ""
+        , toString e.keyCode
+        ]
+
+decodeKeyboardEvent : Json.Decoder KeyboardEvent
+decodeKeyboardEvent =
+    Json.map6 KeyboardEvent
+        (Json.field "altKey" Json.bool)
+        (Json.field "ctrlKey" Json.bool)
+        (Json.field "keyCode" Json.int)
+        (Json.field "metaKey" Json.bool)
+        (Json.field "repeat" Json.bool)
+        (Json.field "shiftKey" Json.bool)    
+
                 
-onKeyDown : (Int -> msg) -> Attribute msg
+onKeyDown : (KeyboardEvent -> msg) -> Attribute msg
 onKeyDown tagger =
-    on "keydown" (Json.map tagger keyCode)
+    on "keydown" (Json.map tagger decodeKeyboardEvent)
 
 onKeyPress : (Int -> msg) -> Attribute msg
 onKeyPress tagger =
