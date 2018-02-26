@@ -4,6 +4,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Json
+import Time exposing (Time, second)
 
 
 import Native.Mice
@@ -28,6 +29,7 @@ type alias Model =
     , history : Maybe String
     , event_memo : List String -- for debug
     , focus : Bool
+    , blink : Bool
     }
 
 init : String -> String -> Model
@@ -40,7 +42,7 @@ init id text =
           Nothing                -- history
           []                     -- event_memo
           False                  -- focus
-
+          False                  -- blink
 
 line : Int -> List String -> Maybe String
 line n lines =
@@ -68,6 +70,7 @@ type Msg
     | FocusIn Bool
     | FocusOut Bool
     | SetFocus
+    | Tick Time
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -106,6 +109,11 @@ update msg model =
         SetFocus ->
             ( {model | focus = doFocus (model.id ++ "-input")}
             , Cmd.none )
+
+        Tick new_time ->
+            ( {model | blink = not model.blink}
+            , Cmd.none )
+
 
 
 keyDown : KeyboardEvent -> Model -> (Model, Cmd Msg)
@@ -514,13 +522,20 @@ compositionPreview compositionData =
 cursorView : Model -> Html msg
 cursorView model =
     span [style [ ("background-color", if model.focus then "blue" else "gray" )
-                , ("opacity", "0.5")
+                , ("opacity", if model.focus && model.blink then "0.0" else "0.5")
                 , ("height", "1em")
                 , ("width", "3px")
                 ]
          ]
     []
     
+------------------------------------------------------------
+-- Subscriptions
+------------------------------------------------------------
+
+subscriptions : Model -> Sub Msg
+subscriptions model = 
+    Sub.batch [ Time.every (0.5 * second) Tick ]
 
 ------------------------------------------------------------
 -- html events (extra)
