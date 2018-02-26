@@ -18,7 +18,8 @@ type alias Cursor =
 
 
 type alias Model =
-    { cursor : Cursor
+    { id : String
+    , cursor : Cursor
     , contents : List String
     , input_buffer : String
     , enableComposer : Bool
@@ -28,9 +29,10 @@ type alias Model =
     , focus : Bool
     }
 
-init : String -> Model
-init text =
-    Model (Cursor 0 0)           -- cursor
+init : String -> String -> Model
+init id text =
+    Model id                     -- id
+          (Cursor 0 0)           -- cursor
           (String.lines text)    -- contents
           ""                     -- input_buffer
           False Nothing          -- COMPOSER STATE
@@ -101,7 +103,7 @@ update msg model =
             ( {model|focus = False}
             , Cmd.none)
         SetFocus ->
-            ( {model | focus = doFocus "input-control"}
+            ( {model | focus = doFocus (model.id ++ "-input")}
             , Cmd.none )
 
 keyDown : Int -> Model -> (Model, Cmd Msg)
@@ -456,7 +458,7 @@ cursorLayer2 model =
                [ ruler model
                , div
                      [ style [("position", "relative"), ("display" , "inline-flex")] ]
-                     [ textarea [ id "input-control"
+                     [ textarea [ id <| model.id ++ "-input"
                                 , onInput Input
                                 , onKeyDown KeyDown
                                 , onCompositionStart CompositionStart

@@ -31,7 +31,7 @@ type Msg
 
 init : (Model, Cmd Msg)
 init =
-    ( Model (Editor.init "") ""
+    ( Model (Editor.init "editor-sample1" "") ""
     , Cmd.none
     )
 
@@ -41,7 +41,7 @@ update msg model =
     case msg of
         RawInput txt ->
             ( { model
-                  | editor = Editor.init txt
+                  | editor = Editor.init model.editor.id txt
               }
             , Cmd.none)
         MoveForward ->
