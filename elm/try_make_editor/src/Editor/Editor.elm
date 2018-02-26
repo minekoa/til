@@ -388,18 +388,45 @@ codeArea : Model -> Html Msg
 codeArea model =
     div [ class "code-area" ]
         [ cursorLayer2 model
-        , codeLayer model.contents
+        , codeLayer model
         ]
 
-codeLayer: List String  -> Html Msg
-codeLayer contents = 
-    div [class "lines"] <|
-        List.map (λ ln -> div [ class "line"
-                               , style [ ("height", "1em")
-                                       , ("text-wrap", "none")
-                                       , ("white-space", "pre")
-                                       ]
-                               ] [text ln] ) contents
+codeLayer: Model  -> Html Msg
+codeLayer model = 
+    let
+        contents = model.contents
+        cursor = model.cursor
+    in
+        div [class "lines"] <|
+            List.indexedMap
+                (λ n ln ->
+                      if n == cursor.row then
+                          div [ class "line"
+                              , style [ ("height", "1em")
+                                      , ("text-wrap", "none")
+                                      , ("white-space", "pre")
+--                                      , ("display" , "inline-flex")
+                                      ]
+                              ]
+                              [ span [ style [ ("position", "relative")
+                                             , ("white-space", "pre")
+                                             ]
+                                     ]
+                                    [ text <| String.left cursor.column ln]
+                              , compositionPreview model.compositionData
+                              , span [ style [ ("position", "relative")
+                                             , ("white-space", "pre")
+                                             ]
+                                     ]
+                                    [ text <| String.dropLeft cursor.column ln]                                  
+                              ]
+                      else
+                          div [ class "line"
+                              , style [ ("height", "1em")
+                                      , ("text-wrap", "none")
+                                      , ("white-space", "pre")
+                                      ]
+                              ] [text ln] ) contents
 
 cursorLayer2 : Model -> Html Msg
 cursorLayer2 model =
@@ -440,14 +467,7 @@ cursorLayer2 model =
                                 , wrap "off"
                                 ]
                            []
-                     , compositionPreview model.compositionData
-                     , span [style [ ("background-color", if model.focus then "blue" else "gray" )
-                                   , ("opacity", "0.5")
-                                   , ("height", "1em")
-                                   , ("width", "3px")
-                                   ]
-                            ]
-                           []
+                     , cursorView model
                      ]
                ]
         ]
@@ -465,20 +485,32 @@ ruler model =
                  , ("visibility", "hidden")                     
                  ]
          ]
-         [ line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text]
+         [ line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text
+         , compositionPreview model.compositionData
+         ]
 
 compositionPreview : Maybe String -> Html msg
 compositionPreview compositionData =
     case compositionData of
         Just s ->
-            div [ class "composition_data"
-                , style [ ("color", "blue")
-                        , ("text-decoration", "underline")
-                        ]
-                ] [ text s ]
+            span [ class "composition_data"
+                 , style [ ("color", "blue")
+                         , ("text-decoration", "underline")
+                         ]
+                 ] [ text s ]
         Nothing ->
             text ""
 
+cursorView : Model -> Html msg
+cursorView model =
+    span [style [ ("background-color", if model.focus then "blue" else "gray" )
+                , ("opacity", "0.5")
+                , ("height", "1em")
+                , ("width", "3px")
+                ]
+         ]
+    []
+    
 
 ------------------------------------------------------------
 -- html events (extra)
