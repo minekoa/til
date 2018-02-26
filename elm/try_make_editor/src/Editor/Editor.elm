@@ -434,7 +434,7 @@ cursorLayer2 model =
                                 , style [ ("width", "1px"), ("border", "none"), ("padding", "none"), ("margin","none"), ("outline", "none")
                                         , ("overflow", "hidden"), ("opacity", "0")
                                         , ("resize", "none")
-                                        , ("position", "absolute")
+                                        , ("position", "absolute") -- textarea のサイズは（入力を取れる状態を維持したままでは）0にできないので、カーソル位置がずれぬよう、浮かせてあげる
                                         ]
                                 , spellcheck False
                                 , wrap "off"
