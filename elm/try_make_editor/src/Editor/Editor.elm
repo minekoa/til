@@ -5,6 +5,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Json
 
+import Native.Mice
 
 {-| This module is simple texteditor.
 
@@ -63,6 +64,7 @@ type Msg
     | CompositionEnd String
     | FocusIn Bool
     | FocusOut Bool
+    | SetFocus
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -98,7 +100,9 @@ update msg model =
         FocusOut _ ->
             ( {model|focus = False}
             , Cmd.none)
-
+        SetFocus ->
+            ( {model | focus = doFocus "input-control"}
+            , Cmd.none )
 
 keyDown : Int -> Model -> (Model, Cmd Msg)
 keyDown code model =
@@ -363,6 +367,7 @@ presentation model =
                 ]
         , onFocusIn FocusIn
         , onFocusOut FocusOut
+        , onClick SetFocus
         ]
         [ lineNumArea model
         , codeArea model
@@ -550,4 +555,9 @@ onFocusOut tagger =
     on "focusout" (Json.map tagger (Json.field "bubbles" Json.bool))
 
 
+------------------------------------------------------------
+------------------------------------------------------------
+
+doFocus : String -> Bool
+doFocus id = Native.Mice.doFocus id
 
