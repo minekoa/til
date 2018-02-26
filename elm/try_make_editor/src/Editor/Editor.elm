@@ -24,6 +24,7 @@ type alias Model =
     , compositionData : Maybe String --IMEで返還中の未確定文字
     , history : Maybe String
     , event_memo : List String -- for debug
+    , focus : Bool
     }
 
 init : String -> Model
@@ -34,6 +35,7 @@ init text =
           False Nothing          -- COMPOSER STATE
           Nothing                -- history
           []                     -- event_memo
+          False                  -- focus
 
 
 line : Int -> List String -> Maybe String
@@ -59,6 +61,8 @@ type Msg
     | CompositionStart String
     | CompositionUpdate String
     | CompositionEnd String
+    | FocusIn Bool
+    | FocusOut Bool
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -87,6 +91,13 @@ update msg model =
 
         CompositionEnd data ->
             compositionEnd data model
+
+        FocusIn _ ->
+            ( {model| focus = True}
+            , Cmd.none)
+        FocusOut _ ->
+            ( {model|focus = False}
+            , Cmd.none)
 
 
 keyDown : Int -> Model -> (Model, Cmd Msg)
@@ -350,6 +361,8 @@ presentation model =
                 , ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                 , ("position", "relative")
                 ]
+        , onFocusIn FocusIn
+        , onFocusOut FocusOut
         ]
         [ lineNumArea model
         , codeArea model
@@ -409,25 +422,33 @@ cursorLayer2 model =
                      ]
                ]
                [ ruler model
-               , textarea [ id "input-control"
-                          , onInput Input
-                          , onKeyDown KeyDown
-                          , onCompositionStart CompositionStart
-                          , onCompositionUpdate CompositionUpdate
-                          , onCompositionEnd CompositionEnd
-                          , value model.input_buffer
-                          , style [ ("width", "2em")
-                                  ]
-                          ]
-                          []
-               , compositionPreview model.compositionData
-               , span [style [ ("background-color", "blue")
-                             , ("opacity", "0.5")
-                             , ("height", "1em")
-                             , ("width", "3px")
-                             ]
-                      ]
-                      []
+               , div
+                     [ style [("position", "relative"), ("display" , "inline-flex")] ]
+                     [ textarea [ id "input-control"
+                                , onInput Input
+                                , onKeyDown KeyDown
+                                , onCompositionStart CompositionStart
+                                , onCompositionUpdate CompositionUpdate
+                                , onCompositionEnd CompositionEnd
+                                , value model.input_buffer
+                                , style [ ("width", "1px"), ("border", "none"), ("padding", "none"), ("margin","none"), ("outline", "none")
+                                        , ("overflow", "hidden"), ("opacity", "0")
+                                        , ("resize", "none")
+                                        , ("position", "absolute")
+                                        ]
+                                , spellcheck False
+                                , wrap "off"
+                                ]
+                           []
+                     , compositionPreview model.compositionData
+                     , span [style [ ("background-color", if model.focus then "blue" else "gray" )
+                                   , ("opacity", "0.5")
+                                   , ("height", "1em")
+                                   , ("width", "3px")
+                                   ]
+                            ]
+                           []
+                     ]
                ]
         ]
 
@@ -486,4 +507,16 @@ onCompositionEnd tagger =
 onCompositionUpdate: (String -> msg) -> Attribute msg
 onCompositionUpdate tagger =
     on "compositionupdate" (Json.map tagger (Json.field "data" Json.string))
+
+onFocusIn : (Bool -> msg) -> Attribute msg
+onFocusIn tagger =
+    -- ほしいプロパティはないのでとりあえずダミーで bubbles を
+    on "focusin" (Json.map tagger (Json.field "bubbles" Json.bool))
+
+onFocusOut : (Bool -> msg) -> Attribute msg
+onFocusOut tagger =
+    -- ほしいプロパティはないのでとりあえずダミーで bubbles を
+    on "focusout" (Json.map tagger (Json.field "bubbles" Json.bool))
+
+
 
