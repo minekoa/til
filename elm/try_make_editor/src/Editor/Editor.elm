@@ -467,6 +467,7 @@ cursorLayer2 model =
                                 , wrap "off"
                                 ]
                            []
+                     , span [ style [("visibility", "hidden") ]] [compositionPreview model.compositionData]
                      , cursorView model
                      ]
                ]
@@ -485,9 +486,7 @@ ruler model =
                  , ("visibility", "hidden")                     
                  ]
          ]
-         [ line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text
-         , compositionPreview model.compositionData
-         ]
+         [ line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text ]
 
 compositionPreview : Maybe String -> Html msg
 compositionPreview compositionData =
