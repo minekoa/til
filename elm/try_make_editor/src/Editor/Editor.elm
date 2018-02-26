@@ -3,6 +3,8 @@ module Editor.Editor exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Json.Decode as Json
+
 
 {-| This module is simple texteditor.
 
@@ -17,16 +19,21 @@ type alias Cursor =
 type alias Model =
     { cursor : Cursor
     , contents : List String
+    , input_buffer : String
+    , enableComposer : Bool
     , compositionData : Maybe String --IMEで返還中の未確定文字
     , history : Maybe String
+    , event_memo : List String -- for debug
     }
 
 init : String -> Model
 init text =
-    Model (Cursor 0 0)
-          (String.lines text)
-          Nothing
-          Nothing
+    Model (Cursor 0 0)           -- cursor
+          (String.lines text)    -- contents
+          ""                     -- input_buffer
+          False Nothing          -- COMPOSER STATE
+          Nothing                -- history
+          []                     -- event_memo
 
 
 line : Int -> List String -> Maybe String
@@ -41,6 +48,120 @@ initCursor contents =
         n = List.length contents
     in
         Cursor (if n < 0 then 0 else n) 0
+
+------------------------------------------------------------
+-- update
+------------------------------------------------------------
+
+type Msg
+    = Input String
+    | KeyDown Int
+    | CompositionStart String
+    | CompositionUpdate String
+    | CompositionEnd String
+
+update : Msg -> Model -> (Model, Cmd Msg)
+update msg model =
+    case msg of
+        Input s ->
+            case model.enableComposer of
+                True ->
+                    ( { model
+                          | input_buffer = s
+                      }
+                    , Cmd.none )
+                False ->
+                    ( insert model (model.cursor.row, model.cursor.column) (String.right 1 s)
+                      |> inputBufferClear
+                      |> eventMemorize ("(" ++ (String.right 1 s) ++ ")")
+                    , Cmd.none)
+
+        KeyDown code ->
+            keyDown code model
+
+        CompositionStart data ->
+            compositionStart data model
+
+        CompositionUpdate data ->
+            compositionUpdate data model
+
+        CompositionEnd data ->
+            compositionEnd data model
+
+
+keyDown : Int -> Model -> (Model, Cmd Msg)
+keyDown code model =
+    case code of
+        37 -> -- '←'
+            ( moveBackward model
+              |> eventMemorize "D"
+            , Cmd.none )
+        38 -> -- '↑'
+            ( movePrevios model
+              |> eventMemorize "D"
+            , Cmd.none)
+        39 -> -- '→'
+            ( moveForward model
+              |> eventMemorize "D"
+            , Cmd.none)
+        40 -> -- '↓'
+            ( moveNext model
+              |> eventMemorize "D"
+            , Cmd.none)
+        8 -> -- bs
+            ( backspace model (model.cursor.row, model.cursor.column)
+              |> eventMemorize "D"
+            , Cmd.none)
+        _ ->
+            ( eventMemorize "D" model
+            , Cmd.none)
+
+compositionStart : String -> Model -> (Model, Cmd Msg)
+compositionStart data model =
+    ( { model
+          | compositionData = Just data
+          , enableComposer = True
+      }
+      |> inputBufferClear
+      |> eventMemorize ("Cs{" ++ data ++ "} ")
+    , Cmd.none
+    )
+
+compositionUpdate : String -> Model -> (Model, Cmd Msg)
+compositionUpdate data model =
+    ( { model | compositionData = Just data }
+      |> inputBufferClear
+      |> eventMemorize ("Cu{" ++ data ++ "} ")
+    , Cmd.none
+    )
+
+compositionEnd : String -> Model -> (Model, Cmd Msg)
+compositionEnd data model =
+    ( insert model (model.cursor.row, model.cursor.column) data
+      |> composerDisable
+      |> inputBufferClear
+      |> eventMemorize ("Ce{" ++ data ++ "} ")
+    , Cmd.none
+    )
+
+------------------------------------------------------------
+-- control state update
+------------------------------------------------------------
+
+eventMemorize : String -> Model -> Model
+eventMemorize s model =
+    { model | event_memo = (s :: model.event_memo) }
+
+inputBufferClear : Model -> Model
+inputBufferClear model =
+    { model | input_buffer = "" }
+
+composerDisable : Model -> Model
+composerDisable model =
+    { model
+        | compositionData = Nothing
+        , enableComposer = False
+    }
 
 ------------------------------------------------------------
 -- cursor
@@ -218,12 +339,12 @@ backspace model (row, col) =
 -- View
 ------------------------------------------------------------
 
-view : Model -> Html msg
+view : Model -> Html Msg
 view model =
     div [class "editor"]
         [ presentation model ]
 
-presentation : Model -> Html msg
+presentation : Model -> Html Msg
 presentation model =
     div [ style [ ("display", "flex"), ("flex-direction", "row"), ("flex-wrap", "no-wrap")
                 , ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
@@ -234,7 +355,7 @@ presentation model =
         , codeArea model
         ]
 
-lineNumArea : Model -> Html msg
+lineNumArea : Model -> Html Msg
 lineNumArea model =
     let
         contents = model.contents
@@ -250,16 +371,14 @@ lineNumArea model =
                              ] [ text (toString n) ])
                 (List.range 1 (List.length contents))
 
-codeArea : Model -> Html msg
+codeArea : Model -> Html Msg
 codeArea model =
     div [ class "code-area" ]
-        [ --cursorLayer model.cursor
-          cursorLayer2 model
+        [ cursorLayer2 model
         , codeLayer model.contents
---        , ruler model
         ]
 
-codeLayer: List String  -> Html msg
+codeLayer: List String  -> Html Msg
 codeLayer contents = 
     div [class "lines"] <|
         List.map (λ ln -> div [ class "line"
@@ -269,35 +388,7 @@ codeLayer contents =
                                        ]
                                ] [text ln] ) contents
 
-
-cursorLayer : Cursor -> Html msg
-cursorLayer cur =
-    {- 作戦1, ちゃんと場所を計算する
-       rulerはつくったが、DOMから取ってくるのがめんどい。未だ作ってない
-    -}
-    div [ class "cursors" 
-        , style [("position", "absolute")]
-        ]
-        [ div [ class "cursor"
-              , style [ ("position", "relative")
-
-                      , ("background-color", "red")
-                      , ("opacity", "0.5")
-
-                      , ("height", "1em")
-                      , ("width" , "0.5em")
-
-                      , ("top" , (cur.row |> toString) ++ "em")
-                      , ("left", (cur.column |> toString) ++ "em")
-
-
-                      , ("z-index", "1")
-                      ]
-              ]
-              []
-        ]
-
-cursorLayer2 : Model -> Html msg
+cursorLayer2 : Model -> Html Msg
 cursorLayer2 model =
     {- 作戦2, [パディング用要素、本物の文字を入れ、hiddenにする][cursol]
        思いついたのでやってみたらうまく行った
@@ -318,16 +409,18 @@ cursorLayer2 model =
                      ]
                ]
                [ ruler model
-               , (case model.compositionData of
-                      Just s ->
-                          div [ class "composition_data"
-                              , style [ ("color", "blue")
-                                      , ("text-decoration", "underline")
-                                      ]
-                              ] [ text s ]
-                      Nothing ->
-                          text ""
-                 )
+               , textarea [ id "input-control"
+                          , onInput Input
+                          , onKeyDown KeyDown
+                          , onCompositionStart CompositionStart
+                          , onCompositionUpdate CompositionUpdate
+                          , onCompositionEnd CompositionEnd
+                          , value model.input_buffer
+                          , style [ ("width", "2em")
+                                  ]
+                          ]
+                          []
+               , compositionPreview model.compositionData
                , span [style [ ("background-color", "blue")
                              , ("opacity", "0.5")
                              , ("height", "1em")
@@ -353,4 +446,44 @@ ruler model =
          ]
          [ line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text]
 
+compositionPreview : Maybe String -> Html msg
+compositionPreview compositionData =
+    case compositionData of
+        Just s ->
+            div [ class "composition_data"
+                , style [ ("color", "blue")
+                        , ("text-decoration", "underline")
+                        ]
+                ] [ text s ]
+        Nothing ->
+            text ""
+
+
+------------------------------------------------------------
+-- html events (extra)
+------------------------------------------------------------
+                
+onKeyDown : (Int -> msg) -> Attribute msg
+onKeyDown tagger =
+    on "keydown" (Json.map tagger keyCode)
+
+onKeyPress : (Int -> msg) -> Attribute msg
+onKeyPress tagger =
+    on "keypress" (Json.map tagger keyCode)
+
+onKeyUp: (Int -> msg) -> Attribute msg
+onKeyUp tagger =
+    on "keyup" (Json.map tagger keyCode)
+
+onCompositionStart: (String -> msg) -> Attribute msg
+onCompositionStart tagger =
+    on "compositionstart" (Json.map tagger (Json.field "data" Json.string))
+
+onCompositionEnd: (String -> msg) -> Attribute msg
+onCompositionEnd tagger =
+    on "compositionend" (Json.map tagger (Json.field "data" Json.string))
+
+onCompositionUpdate: (String -> msg) -> Attribute msg
+onCompositionUpdate tagger =
+    on "compositionupdate" (Json.map tagger (Json.field "data" Json.string))
 

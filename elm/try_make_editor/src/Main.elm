@@ -18,15 +18,7 @@ main =
 type alias Model =
     { editor : Editor.Model
     , raw_buf : String
-    , hist : String
-    , enableIME : Bool
-    , previosKeyEvent : KeyEventKind
     }
-
-type KeyEventKind
-    = KeyDownEvent
-    | KeyPressEvent
-    | KeyUpEvent
 
 type Msg
     = RawInput String
@@ -35,16 +27,11 @@ type Msg
     | MovePrevios
     | MoveNext
     | Backspace
-    | Insert String
-    | KeyDown Int
-    | CompositionStart String
-    | CompositionUpdate String
-    | CompositionEnd String
-
+    | EditorMsg (Editor.Msg)
 
 init : (Model, Cmd Msg)
 init =
-    ( Model (Editor.init "") "" "" False KeyUpEvent
+    ( Model (Editor.init "") ""
     , Cmd.none
     )
 
@@ -84,166 +71,13 @@ update msg model =
               }
             , Cmd.none)
 
-        Insert s ->
-            case model.enableIME of
-                True ->
-                    let editor = model.editor in
-                    ( { model
-                          | raw_buf =  s
-                          , hist = ("<<" ++ s ++ ">> ") ++ model.hist
-                      }
-                    , Cmd.none )
-                False ->
-                    ( { model
-                          | editor = Editor.insert model.editor (model.editor.cursor.row, model.editor.cursor.column) (String.right 1 s)
-                          , raw_buf =  ""
-                          , hist = ("(" ++ (String.right 1 s) ++ ") ") ++ model.hist
-                      }
-                    , Cmd.none)
-
-        KeyDown code ->
-            keyDown code model
-
-        CompositionStart data ->
-            compositionStart data model
-
-        CompositionUpdate data ->
-            compositionUpdate data model
-
-        CompositionEnd data ->
-            compositionEnd data model
-
-
-keyDown : Int -> Model -> (Model, Cmd Msg)
-keyDown code model =
-    case code of
-        37 -> -- '←'
-            ( { model
-                  | editor = Editor.moveBackward model.editor
-                  , previosKeyEvent = KeyDownEvent
-                  , hist = "D " ++ model.hist
-              }
-            , Cmd.none)
-        38 -> -- '↑'
-            ( { model
-                  | editor = Editor.movePrevios model.editor
-                  , previosKeyEvent = KeyDownEvent
-                  , hist = "D " ++ model.hist
-              }
-            , Cmd.none)
-        39 -> -- '→'
-            ( { model
-                  | editor = Editor.moveForward model.editor
-                  , previosKeyEvent = KeyDownEvent
-                  , hist = "D " ++ model.hist
-              }
-            , Cmd.none)
-        40 -> -- '↓'
-            ( { model
-                  | editor = Editor.moveNext model.editor
-                  , previosKeyEvent = KeyDownEvent
-                  , hist = "D " ++ model.hist
-              }
-            , Cmd.none)
-        8 -> -- bs
-            ( { model
-                  | editor = Editor.backspace model.editor (model.editor.cursor.row, model.editor.cursor.column)
-                  , enableIME = False
-                  , previosKeyEvent = KeyDownEvent
-                  , hist = "D " ++ model.hist
-              }
-            , Cmd.none)
-
-        _ ->
-            ( { model
-                  | previosKeyEvent = KeyDownEvent
-                  , hist = "D " ++ model.hist
-              }
-            , Cmd.none)
-
-
-keyPress : Int -> Model -> (Model, Cmd Msg)
-keyPress code model =
-    case code of
-        _ ->
-            ( { model
-                  | previosKeyEvent = KeyPressEvent
-                  , hist = "P " ++ model.hist
-              }
-            , Cmd.none)
-
-keyUp : Int -> Model -> (Model, Cmd Msg)
-keyUp code model =
-    case code of
-        13 -> -- Enter
-            if model.previosKeyEvent == KeyDownEvent then
-                let
-                    e1 = model.editor
-                    e2 = {e1 | compositionData = Nothing}
-                in
-                ( { model
-                      | editor = Editor.insert e2 (e2.cursor.row, e2.cursor.column) (Maybe.withDefault "" e1.compositionData)
-                      , raw_buf = ""
-                      , previosKeyEvent = KeyUpEvent
-                      , hist = "U " ++ model.hist
-                      , enableIME = False
-                  }
-                , Cmd.none )
-            else 
-                ( { model
-                      | previosKeyEvent = KeyUpEvent
-                      , hist = "U " ++ model.hist
-                  }
-                , Cmd.none)
-        _ ->
-            ( { model
-                  | previosKeyEvent = KeyUpEvent
-                  , hist = "U " ++ model.hist
-              }
-            , Cmd.none)
-
-compositionStart : String -> Model -> (Model, Cmd Msg)
-compositionStart data model =
-    let
-        e1 = model.editor
-        e2 = {e1 | compositionData = Just(data)}
-    in
-    ( { model
-          | enableIME = True
-          , raw_buf = ""
-          , editor = e2
-          , hist = "Cs{" ++ data ++ "} " ++ model.hist
-      }
-    , Cmd.none
-    )
-
-compositionUpdate : String -> Model -> (Model, Cmd Msg)
-compositionUpdate data model =
-    let
-        e1 = model.editor
-        e2 = {e1 | compositionData = Just(data)}
-    in
-    ( { model
-          | hist = "Cu{" ++ data ++ "} " ++ model.hist
-          , editor = e2
-      }
-    , Cmd.none
-    )
-
-
-compositionEnd : String -> Model -> (Model, Cmd Msg)
-compositionEnd data model =
-    let
-        e1 = model.editor
-        e2 = {e1 | compositionData = Nothing}
-    in
-    ( { model
-          | editor = Editor.insert e2 (e2.cursor.row, e2.cursor.column) data
-          , raw_buf = ""
-          , hist = "Ce{" ++ data ++ "} " ++ model.hist
-          , enableIME = False
-      }
-    , Cmd.none )
+        -- ScenarioPage >> List
+        EditorMsg msg ->
+            let
+                (m, c) = Editor.update msg model.editor
+            in
+                ( { model | editor = m}
+                , Cmd.map EditorMsg c )
 
 
 subscriptions : Model -> Sub Msg
@@ -262,58 +96,29 @@ view model =
                       , ("flex-grow", "8")
                       , ("overflow","auto")
                       ]
-              ] [ Editor.view model.editor ]
+              ] [ Html.map EditorMsg (Editor.view model.editor) ]
         , div [ class "modeline"
               , style [ ("background-color","black")
                       , ("color", "white")
                       ]
               ] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"
-                , text <| if model.enableIME then ("[IME] " ++ (Maybe.withDefault "" model.editor.compositionData) ) else "" 
+                , text <| if model.editor.enableComposer then ("[IME] " ++ (Maybe.withDefault "" model.editor.compositionData) ) else "" 
                 ]
-        , div [] [ textarea [ onInput Insert
-                            , onKeyDown KeyDown
-                            , onCompositionStart CompositionStart
-                            , onCompositionUpdate CompositionUpdate
-                            , onCompositionEnd CompositionEnd
-                            , value model.raw_buf] []
-                 , button [ onClick Backspace ] [ text "Backspace" ]
-                 ]
         , div [] [ button [ onClick MoveBackword ] [text "←"]
                  , button [ onClick MovePrevios  ] [text "↑"]
                  , button [ onClick MoveNext     ] [text "↓"]
                  , button [ onClick MoveForward  ] [text "→"]
+                 , text "|"
+                 , button [ onClick Backspace ] [ text "Backspace" ]
                  ]
         , div [ style [ ("overflow","scroll")
                       , ("width", "calc( 100% - 2px )")
                       , ("border", "1px solid black")
                       , ("flex-grow", "3")
                       , ("min-height", "3em")
+                      , ("max-height", "8em")
                       ]
-              ] [ text model.hist ]
+              ] 
+              ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_memo )
         ]
-
-onKeyDown : (Int -> msg) -> Attribute msg
-onKeyDown tagger =
-    on "keydown" (Json.map tagger keyCode)
-
-onKeyPress : (Int -> msg) -> Attribute msg
-onKeyPress tagger =
-    on "keypress" (Json.map tagger keyCode)
-
-onKeyUp: (Int -> msg) -> Attribute msg
-onKeyUp tagger =
-    on "keyup" (Json.map tagger keyCode)
-
-onCompositionStart: (String -> msg) -> Attribute msg
-onCompositionStart tagger =
-    on "compositionstart" (Json.map tagger (Json.field "data" Json.string))
-
-onCompositionEnd: (String -> msg) -> Attribute msg
-onCompositionEnd tagger =
-    on "compositionend" (Json.map tagger (Json.field "data" Json.string))
-
-onCompositionUpdate: (String -> msg) -> Attribute msg
-onCompositionUpdate tagger =
-    on "compositionupdate" (Json.map tagger (Json.field "data" Json.string))
-
 
