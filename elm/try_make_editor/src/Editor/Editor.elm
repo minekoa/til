@@ -29,8 +29,23 @@ type alias Model =
     , history : Maybe String
     , event_memo : List String -- for debug
     , focus : Bool
-    , blink : Bool
+    , blink : BlinkState
     }
+
+type BlinkState
+    = Blink Bool
+    | BlinkBlocked
+
+blinkTransition : BlinkState -> BlinkState
+blinkTransition blnk =
+    case blnk of
+        BlinkBlocked -> Blink True
+        Blink True   -> Blink False
+        Blink False  -> Blink True
+
+blinkBlock : Model -> Model
+blinkBlock model =
+    {model | blink = BlinkBlocked}
 
 init : String -> String -> Model
 init id text =
@@ -42,7 +57,7 @@ init id text =
           Nothing                -- history
           []                     -- event_memo
           False                  -- focus
-          False                  -- blink
+          BlinkBlocked           -- blink
 
 line : Int -> List String -> Maybe String
 line n lines =
@@ -111,7 +126,7 @@ update msg model =
             , Cmd.none )
 
         Tick new_time ->
-            ( {model | blink = not model.blink}
+            ( {model | blink = blinkTransition model.blink }
             , Cmd.none )
 
 
@@ -211,6 +226,7 @@ moveForward model =
             )
         |> Maybe.withDefault (initCursor model.contents)
         |> (λ c -> {model | cursor = c})
+        |> blinkBlock
 
 
 moveBackward : Model -> Model
@@ -230,6 +246,7 @@ moveBackward model =
             )
         |> Maybe.withDefault (initCursor model.contents)
         |> (λ c -> {model | cursor = c})
+        |> blinkBlock
 
 
 
@@ -247,6 +264,7 @@ movePrevios model =
             )
         |> Maybe.withDefault cur
         |> (λ c -> {model | cursor = c})
+        |> blinkBlock
 
 
 
@@ -264,6 +282,7 @@ moveNext model =
             )
         |> Maybe.withDefault cur
         |> (λ c -> {model | cursor = c})
+        |> blinkBlock
 
 
 -- Tool
@@ -302,7 +321,7 @@ insert model (row, col) text =
 
         car = List.head >> Maybe.withDefault ""
     in
-        case List.length texts of
+        (case List.length texts of
             0 ->
                 model
             1 ->
@@ -330,11 +349,12 @@ insert model (row, col) text =
                                            ++ nrows
                         , cursor = Cursor (row + n - 1) (String.length lst_ln)
                     }
+        ) |> blinkBlock
 
 
 backspace: Model -> (Int, Int) -> Model
 backspace model (row, col) =
-    case (row, col) of
+    (case (row, col) of
         (0, 0) ->
             model
         (_, 0) ->
@@ -362,6 +382,7 @@ backspace model (row, col) =
                     | contents = prows ++ ((left ++ right) :: nrows)
                     , cursor = Cursor row  (col - 1)
                 }
+    ) |> blinkBlock
 
 ------------------------------------------------------------
 -- View
@@ -521,14 +542,21 @@ compositionPreview compositionData =
 
 cursorView : Model -> Html msg
 cursorView model =
+    let
+        blink_off = (\blnk -> case blnk of
+                                Blink b      -> b
+                                BlinkBlocked -> True
+                    ) >> not
+    in
     span [style [ ("background-color", if model.focus then "blue" else "gray" )
-                , ("opacity", if model.focus && model.blink then "0.0" else "0.5")
+                , ("opacity", if model.focus && (blink_off model.blink) then "0.0" else "0.5")
                 , ("height", "1em")
                 , ("width", "3px")
                 ]
          ]
     []
-    
+
+
 ------------------------------------------------------------
 -- Subscriptions
 ------------------------------------------------------------
