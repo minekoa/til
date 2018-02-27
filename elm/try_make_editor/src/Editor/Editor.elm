@@ -186,6 +186,7 @@ compositionStart data model =
           , enableComposer = True
       }
       |> inputBufferClear
+      |> blinkBlock
       |> eventMemorize ("Cs{" ++ data ++ "} ")
     , Cmd.none
     )
@@ -194,6 +195,7 @@ compositionUpdate : String -> Model -> (Model, Cmd Msg)
 compositionUpdate data model =
     ( { model | compositionData = Just data }
       |> inputBufferClear
+      |> blinkBlock
       |> eventMemorize ("Cu{" ++ data ++ "} ")
     , Cmd.none
     )
@@ -203,6 +205,7 @@ compositionEnd data model =
     ( insert model (model.cursor.row, model.cursor.column) data
       |> composerDisable
       |> inputBufferClear
+      |> blinkBlock
       |> eventMemorize ("Ce{" ++ data ++ "} ")
     , Cmd.none
     )
