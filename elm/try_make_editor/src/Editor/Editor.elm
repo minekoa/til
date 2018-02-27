@@ -15,28 +15,38 @@ import Native.Mice
 
 type alias Model =
     { id : String -- frame id
+
+    -- buffer
     , cursor : Cursor
     , contents : List String
+    , history : List EditCommand
+
+    -- frame
     , input_buffer : String
     , enableComposer : Bool
     , compositionData : Maybe String --IMEで返還中の未確定文字
-    , history : Maybe String
-    , event_memo : List String -- for debug
     , focus : Bool
     , blink : BlinkState
+
+    -- for debug
+    , event_memo : List String
     }
 
 init : String -> String -> Model
 init id text =
     Model id                     -- id
+
           (Cursor 0 0)           -- cursor
           (String.lines text)    -- contents
+          []                     -- history
+
           ""                     -- input_buffer
           False Nothing          -- COMPOSER STATE
-          Nothing                -- history
-          []                     -- event_memo
           False                  -- focus
           BlinkBlocked           -- blink
+
+          []                     -- event_memo
+
 
 -- frame > cursor blink
 
@@ -86,6 +96,36 @@ maxColumn line =
 maxRow : List String -> Int
 maxRow contents =
     (List.length contents) - 1
+
+-- buffer > history (for undo/redo)
+
+type EditCommand
+    = Cmd_Insert (Int, Int) String
+    | Cmd_Backspace (Int, Int) String -- str は undo用
+    | Cmd_Delete (Int, Int) String    -- str は undo 用
+--    | Cmd_Undo EditCommand
+
+appendHistory: EditCommand -> Model -> Model
+appendHistory cmd model =
+    case (cmd, List.head model.history) of
+        ( (Cmd_Insert (r, c) s), Just (Cmd_Insert (or, oc) os) ) ->
+            if (r == or) && (c == oc + (String.length os))
+            then { model | history = (Cmd_Insert (or, oc) (os ++ s)) :: List.drop 1 model.history }
+            else { model | history = cmd :: model.history }
+
+        ( (Cmd_Backspace (r, c) s), Just (Cmd_Backspace (or, oc) os) ) ->
+            if (r == or) && (c == oc - (String.length os))
+            then { model | history = (Cmd_Backspace (or, oc) (s ++ os)) :: List.drop 1 model.history }
+            else { model | history = cmd :: model.history }
+
+        ( (Cmd_Delete (r, c) s), Just (Cmd_Delete (or, oc) os) ) ->
+            if (r == or) && (c == oc)
+            then { model | history = (Cmd_Delete (or, oc) (os ++ s)) :: List.drop 1 model.history }
+            else { model | history = cmd :: model.history }
+
+        (_ , _) ->
+            { model | history = cmd :: model.history }
+
 
 
 ------------------------------------------------------------
@@ -313,15 +353,14 @@ moveNext model =
 -- edit
 ------------------------------------------------------------
 
-
-type EditCommand
-    = Insert (Int, Int) String
-    | Delete (Int, Int)
-    
-
-
 insert: Model -> (Int, Int)  -> String -> Model
 insert model (row, col) text =
+    insert_proc model (row, col) text
+    |> appendHistory (Cmd_Insert (row, col) text)
+    |> blinkBlock
+
+insert_proc: Model -> (Int, Int)  -> String -> Model
+insert_proc model (row, col) text =
     let
         contents = model.contents
         prows = List.take row contents
@@ -334,7 +373,7 @@ insert model (row, col) text =
 
         car = List.head >> Maybe.withDefault ""
     in
-        (case List.length texts of
+        case List.length texts of
             0 ->
                 model
             1 ->
@@ -362,14 +401,30 @@ insert model (row, col) text =
                                            ++ nrows
                         , cursor = Cursor (row + n - 1) (String.length lst_ln)
                     }
-        ) |> blinkBlock
 
 
 backspace: Model -> (Int, Int) -> Model
 backspace model (row, col) =
-    (case (row, col) of
+    let
+        (m, deleted) = backspace_proc model (row, col)
+    in
+        case deleted of
+            Nothing ->
+                m
+                |> blinkBlock
+            Just s ->
+                m
+                |> appendHistory (Cmd_Backspace (row, col) s)
+                |> blinkBlock
+
+
+
+backspace_proc: Model -> (Int, Int) -> (Model, Maybe String)
+backspace_proc model (row, col) =
+    case (row, col) of
         (0, 0) ->
-            model
+            (model, Nothing)
+
         (_, 0) ->
             let
                 prows  = List.take (row - 1) model.contents
@@ -378,10 +433,12 @@ backspace model (row, col) =
 
                 n_col  = List.drop (row - 1) model.contents |> List.head |> Maybe.withDefault "" |> String.length
             in
-                { model
-                    | contents = prows ++ (crow :: nrows )
-                    , cursor = Cursor (row - 1) (n_col)
-                }
+                ( { model
+                      | contents = prows ++ (crow :: nrows )
+                      , cursor = Cursor (row - 1) (n_col)
+                  }
+                , Just "\n")
+
         (_, n) ->
             let
                 prows = List.take row model.contents
@@ -391,22 +448,40 @@ backspace model (row, col) =
                 left  = (String.left (col - 1) crow)
                 right = (String.dropLeft (col) crow)
             in
-                { model
-                    | contents = prows ++ ((left ++ right) :: nrows)
-                    , cursor = Cursor row  (col - 1)
-                }
-    ) |> blinkBlock
+                ( { model
+                      | contents = prows ++ ((left ++ right) :: nrows)
+                      , cursor = Cursor row  (col - 1)
+                  }
+                , Just (crow |> String.dropLeft (col - 1) |> String.left 1) )
+
 
 delete: Model -> (Int, Int) -> Model
 delete model (row, col) =
+    let
+        (m, deleted) = delete_proc model (row, col)
+    in
+        case deleted of
+            Nothing ->
+                m
+                |> blinkBlock
+            Just s ->
+                m
+                |> appendHistory (Cmd_Delete (row, col) s)
+                |> blinkBlock
+
+
+
+delete_proc: Model -> (Int, Int) -> (Model, Maybe String)
+delete_proc model (row, col) =
     let
         ln      = line row model.contents |> Maybe.withDefault ""
         max_row = maxRow model.contents
         max_col = maxColumn ln
     in
-        (case (row == max_row, col > max_col) of
+        case (row == max_row, col > max_col) of
              (True, True)  ->
-                 model
+                 (model , Nothing)
+
              (_   , False) ->
                  let
                      prows  = List.take row model.contents
@@ -414,9 +489,10 @@ delete model (row, col) =
 
                      current = (String.left (col) ln) ++ (String.dropLeft (col + 1) ln)
                  in
-                     { model
-                         | contents = prows ++ (current :: nrows)
-                     }
+                     ( { model
+                           | contents = prows ++ (current :: nrows)
+                       }
+                     , Just (ln |> String.dropLeft col |> String.left 1) )
 
              (_   , True) ->
                  let
@@ -426,12 +502,62 @@ delete model (row, col) =
 
                      current = ln ++ nxt
                  in
-                     { model
-                         | contents = prows ++ (current :: nrows)
-                     }
-        ) |> blinkBlock
+                     ( { model
+                           | contents = prows ++ (current :: nrows)
+                       }
+                     , Just "\n" )
 
 
+undo : Model -> Model
+undo model =
+    ( case List.head model.history of
+          Nothing -> model
+          Just cmd ->
+              ( case cmd of
+                    Cmd_Insert (row, col) str    ->
+                        let
+                            delete_n = (\ c m ->
+                                            if c <= 0 then m
+                                            else
+                                                let
+                                                    (mp, s) = backspace_proc m (m.cursor.row, m.cursor.column)
+                                                in
+                                                    delete_n (c - 1) mp 
+                                       )
+                            ls      = String.lines str
+                            r_delta = (List.length ls) - 1
+                            c_delta = ls
+                                      |> List.reverse 
+                                      |> List.head
+                                      |> Maybe.withDefault ""
+                                      |> String.length
+                                      |> (+) -1
+                        in
+                            delete_n (String.length str)
+                                { model
+                                    | cursor = (Cursor (row + r_delta) (col + c_delta + 1))
+                                }
+
+                    Cmd_Backspace (row, col) str ->
+                        let
+                            ls      = String.lines str
+                            r_delta = (List.length ls) - 1
+                            c_delta = ls
+                                      |> List.reverse 
+                                      |> List.head
+                                      |> Maybe.withDefault ""
+                                      |> String.length
+                                      |> (+) -1
+                        in
+                            insert_proc model (row - r_delta, col - c_delta - 1) str
+
+                    Cmd_Delete (row, col) str    ->
+                        insert_proc model (row, col) str
+
+              )
+              |> (\ m -> {m | history = List.drop 1 m.history })
+    )
+    |> blinkBlock
 
 ------------------------------------------------------------
 -- View

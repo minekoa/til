@@ -28,6 +28,7 @@ type Msg
     | MoveNext
     | Backspace
     | Delete
+    | Undo
     | EditorMsg (Editor.Msg)
 
 init : (Model, Cmd Msg)
@@ -78,6 +79,13 @@ update msg model =
               }
             , Cmd.none)
 
+        Undo ->
+            ( { model
+                  | editor = Editor.undo model.editor
+              }
+            , Cmd.none)
+
+
 
         -- ScenarioPage >> List
         EditorMsg msg ->
@@ -120,15 +128,39 @@ view model =
                  , text "|"
                  , button [ onClick Backspace ] [ text "BS" ]
                  , button [ onClick Delete ] [ text "DEL" ]
+                 , text "|"
+                 , button [ onClick Undo ] [ text "Undo" ]
                  ]
-        , div [ style [ ("overflow","scroll")
-                      , ("width", "calc( 100% - 2px )")
-                      , ("border", "1px solid black")
+        , div [ style [ ("display", "flex")
+                      , ("flex-direction", "row")
+                      , ("width" , "100%"), ("height", "100%")
                       , ("flex-grow", "3")
                       , ("min-height", "3em")
                       , ("max-height", "8em")
                       ]
-              ] 
-              ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_memo )
+              ]
+              [ div [ style [ ("width", "8em"), ("overflow","scroll")] ]
+                    ( List.map
+                          (\ c ->
+                               let
+                                   pos2str = \ row col -> "(" ++ (toString row) ++ ", " ++ (toString col) ++")" 
+                                   celstyle = style [("text-wrap", "none"), ("white-space","nowrap"), ("color", "gray")]
+                               in
+                                   case c of
+                                       Editor.Cmd_Insert (row, col) str ->
+                                           div [celstyle] [ "Ins" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                                       Editor.Cmd_Backspace (row, col) str ->
+                                           div [celstyle] [ "Bs_" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                                       Editor.Cmd_Delete (row, col) str ->
+                                           div [celstyle] [ "Del" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                          ) model.editor.history
+                    )
+              , div [ style [ ("overflow","scroll")
+                            , ("width", "calc( 100% - 2px )")
+                            , ("border", "1px solid black")
+                            ]
+                    ] 
+                    ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_memo )
+              ]
         ]
 
