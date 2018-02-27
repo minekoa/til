@@ -13,14 +13,8 @@ import Native.Mice
 
 -}
 
-type alias Cursor =
-    { row : Int
-    , column : Int
-    }
-
-
 type alias Model =
-    { id : String
+    { id : String -- frame id
     , cursor : Cursor
     , contents : List String
     , input_buffer : String
@@ -31,6 +25,20 @@ type alias Model =
     , focus : Bool
     , blink : BlinkState
     }
+
+init : String -> String -> Model
+init id text =
+    Model id                     -- id
+          (Cursor 0 0)           -- cursor
+          (String.lines text)    -- contents
+          ""                     -- input_buffer
+          False Nothing          -- COMPOSER STATE
+          Nothing                -- history
+          []                     -- event_memo
+          False                  -- focus
+          BlinkBlocked           -- blink
+
+-- frame > cursor blink
 
 type BlinkState
     = Blink Bool
@@ -47,23 +55,13 @@ blinkBlock : Model -> Model
 blinkBlock model =
     {model | blink = BlinkBlocked}
 
-init : String -> String -> Model
-init id text =
-    Model id                     -- id
-          (Cursor 0 0)           -- cursor
-          (String.lines text)    -- contents
-          ""                     -- input_buffer
-          False Nothing          -- COMPOSER STATE
-          Nothing                -- history
-          []                     -- event_memo
-          False                  -- focus
-          BlinkBlocked           -- blink
 
-line : Int -> List String -> Maybe String
-line n lines =
-    if n < 0
-    then Nothing
-    else List.head (List.drop n lines)
+-- buffer > cursor
+
+type alias Cursor =
+    { row : Int
+    , column : Int
+    }
 
 initCursor : List String -> Cursor
 initCursor contents =             
@@ -71,6 +69,24 @@ initCursor contents =
         n = List.length contents
     in
         Cursor (if n < 0 then 0 else n) 0
+
+
+-- buffer > contents
+
+line : Int -> List String -> Maybe String
+line n lines =
+    if n < 0
+    then Nothing
+    else List.head (List.drop n lines)
+
+maxColumn: String -> Int
+maxColumn line =
+    (String.length line) - 1
+
+maxRow : List String -> Int
+maxRow contents =
+    (List.length contents) - 1
+
 
 ------------------------------------------------------------
 -- update
@@ -152,6 +168,10 @@ keyDown e model =
             , Cmd.none)
         8 -> -- bs
             ( backspace model (model.cursor.row, model.cursor.column)
+              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
+            , Cmd.none)
+        46 -> -- del
+            ( delete model (model.cursor.row, model.cursor.column)
               |> eventMemorize ("D:" ++ keyboarEvent_toString e)
             , Cmd.none)
         _ ->
@@ -285,16 +305,6 @@ moveNext model =
         |> blinkBlock
 
 
--- Tool
-
-maxColumn: String -> Int
-maxColumn line =
-    (String.length line) - 1
-
-maxRow : List String -> Int
-maxRow contents =
-    (List.length contents) - 1
-
 
 ------------------------------------------------------------
 -- edit
@@ -383,6 +393,42 @@ backspace model (row, col) =
                     , cursor = Cursor row  (col - 1)
                 }
     ) |> blinkBlock
+
+delete: Model -> (Int, Int) -> Model
+delete model (row, col) =
+    let
+        ln      = line row model.contents |> Maybe.withDefault ""
+        max_row = maxRow model.contents
+        max_col = maxColumn ln
+    in
+        (case (row == max_row, col > max_col) of
+             (True, True)  ->
+                 model
+             (_   , False) ->
+                 let
+                     prows  = List.take row model.contents
+                     nrows  = List.drop (row + 1) model.contents
+
+                     current = (String.left (col) ln) ++ (String.dropLeft (col + 1) ln)
+                 in
+                     { model
+                         | contents = prows ++ (current :: nrows)
+                     }
+
+             (_   , True) ->
+                 let
+                     prows  = List.take row model.contents
+                     nxt    = line (row + 1) model.contents |> Maybe.withDefault ""
+                     nrows  = List.drop (row + 2) model.contents
+
+                     current = ln ++ nxt
+                 in
+                     { model
+                         | contents = prows ++ (current :: nrows)
+                     }
+        ) |> blinkBlock
+
+
 
 ------------------------------------------------------------
 -- View
@@ -565,9 +611,12 @@ subscriptions : Model -> Sub Msg
 subscriptions model = 
     Sub.batch [ Time.every (0.5 * second) Tick ]
 
+
 ------------------------------------------------------------
 -- html events (extra)
 ------------------------------------------------------------
+
+-- Keyboard Event
 
 type alias KeyboardEvent = 
     { altKey : Bool
@@ -611,6 +660,9 @@ onKeyUp: (Int -> msg) -> Attribute msg
 onKeyUp tagger =
     on "keyup" (Json.map tagger keyCode)
 
+
+-- Composition Event (IME)
+
 onCompositionStart: (String -> msg) -> Attribute msg
 onCompositionStart tagger =
     on "compositionstart" (Json.map tagger (Json.field "data" Json.string))
@@ -622,6 +674,8 @@ onCompositionEnd tagger =
 onCompositionUpdate: (String -> msg) -> Attribute msg
 onCompositionUpdate tagger =
     on "compositionupdate" (Json.map tagger (Json.field "data" Json.string))
+
+-- Focus Event
 
 onFocusIn : (Bool -> msg) -> Attribute msg
 onFocusIn tagger =
@@ -635,6 +689,7 @@ onFocusOut tagger =
 
 
 ------------------------------------------------------------
+-- Native (Mice)
 ------------------------------------------------------------
 
 doFocus : String -> Bool

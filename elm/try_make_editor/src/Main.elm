@@ -27,6 +27,7 @@ type Msg
     | MovePrevios
     | MoveNext
     | Backspace
+    | Delete
     | EditorMsg (Editor.Msg)
 
 init : (Model, Cmd Msg)
@@ -71,6 +72,13 @@ update msg model =
               }
             , Cmd.none)
 
+        Delete ->
+            ( { model
+                  | editor = Editor.delete model.editor (model.editor.cursor.row, model.editor.cursor.column)
+              }
+            , Cmd.none)
+
+
         -- ScenarioPage >> List
         EditorMsg msg ->
             let
@@ -110,7 +118,8 @@ view model =
                  , button [ onClick MoveNext     ] [text "↓"]
                  , button [ onClick MoveForward  ] [text "→"]
                  , text "|"
-                 , button [ onClick Backspace ] [ text "Backspace" ]
+                 , button [ onClick Backspace ] [ text "BS" ]
+                 , button [ onClick Delete ] [ text "DEL" ]
                  ]
         , div [ style [ ("overflow","scroll")
                       , ("width", "calc( 100% - 2px )")
