@@ -4,6 +4,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Json
+import Mouse
 import Time exposing (Time, second)
 
 
@@ -28,6 +29,7 @@ type alias Model =
 
     -- for debug
     , event_memo : List String
+    , xy : Mouse.Position
     }
 
 init : String -> String -> Model
@@ -40,7 +42,7 @@ init id text =
           BlinkBlocked           -- blink
 
           []                     -- event_memo
-
+          (Mouse.Position 0 0)
 
 
 -- frame > cursor blink
@@ -77,6 +79,7 @@ type Msg
     | FocusIn Bool
     | FocusOut Bool
     | SetFocus
+    | DragStart Int Mouse.Position
     | Tick Time
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -116,6 +119,29 @@ update msg model =
         SetFocus ->
             ( {model | focus = doFocus (model.id ++ "-input")}
             , Cmd.none )
+
+        DragStart row xy ->
+            let
+                calc_w  = calcTextWidth (model.id ++ "-ruler")
+                calc_col = (\ ln c x ->
+                              if (calc_w (String.left c ln)) > x || String.length ln < c  then c - 1
+                              else calc_col ln (c + 1)  x)
+
+                ln = Buffer.line row model.buffer.contents |> Maybe.withDefault ""
+                rect = getBoundingClientRect (model.id ++ "-codeLayer")
+
+                col = (calc_col ln 0 (xy.x - rect.left))
+
+                b1 = model.buffer
+                b2 = { b1 | cursor = Buffer.Cursor row col }
+
+
+            in
+                ( { model | buffer = b2, xy = xy}
+                  |> eventMemorize ("Ds(" ++ (toString xy.x) ++ ", " ++ (toString xy.y) ++ "{lft" ++ (toString rect.left) ++")")
+                  |> eventMemorize ("CALC(" ++ ln ++ "):" ++ (toString col))
+                  |> blinkBlock
+                , Cmd.none )
 
         Tick new_time ->
             ( {model | blink = blinkTransition model.blink }
@@ -313,7 +339,8 @@ lineNumArea model =
 codeArea : Model -> Html Msg
 codeArea model =
     div [ class "code-area" ]
-        [ cursorLayer2 model
+        [ ruler (model.id ++ "-ruler")
+        , cursorLayer2 model
         , codeLayer model
         ]
 
@@ -323,7 +350,8 @@ codeLayer model =
         contents = model.buffer.contents
         cursor = model.buffer.cursor
     in
-        div [class "lines"] <|
+        div [ id (model.id ++ "-codeLayer")
+            , class "lines"] <|
             List.indexedMap
                 (λ n ln ->
                       if n == cursor.row then
@@ -333,6 +361,7 @@ codeLayer model =
                                       , ("white-space", "pre")
 --                                      , ("display" , "inline-flex")
                                       ]
+                              , onMouseDown (DragStart n)
                               ]
                               [ span [ style [ ("position", "relative")
                                              , ("white-space", "pre")
@@ -352,6 +381,7 @@ codeLayer model =
                                       , ("text-wrap", "none")
                                       , ("white-space", "pre")
                                       ]
+                              , onMouseDown (DragStart n)
                               ] [text ln] ) contents
 
 cursorLayer2 : Model -> Html Msg
@@ -374,7 +404,7 @@ cursorLayer2 model =
                      , ("left", "0")
                      ]
                ]
-               [ ruler model
+               [ pad model
                , div
                      [ style [("position", "relative"), ("display" , "inline-flex")] ]
                      [ textarea [ id <| model.id ++ "-input"
@@ -400,19 +430,29 @@ cursorLayer2 model =
         ]
 
 
-ruler : Model -> Html msg
-ruler model = 
+pad : Model -> Html msg
+pad model =
     let
         cur      = model.buffer.cursor
         contents = model.buffer.contents
     in
-    span [ id "ruler"
+    span [ class "pad"
          , style [ ("position", "relative")
                  , ("white-space", "pre")
                  , ("visibility", "hidden")                     
                  ]
          ]
          [ Buffer.line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text ]
+
+ruler : String -> Html msg
+ruler base_id = 
+    span [ id base_id
+         , style [ ("position", "absolute")
+                 , ("white-space", "pre")
+                 , ("color", "green")
+                 ]
+         ]
+         []
 
 compositionPreview : Maybe String -> Html msg
 compositionPreview compositionData =
@@ -527,6 +567,11 @@ onFocusOut tagger =
     -- ほしいプロパティはないのでとりあえずダミーで bubbles を
     on "focusout" (Json.map tagger (Json.field "bubbles" Json.bool))
 
+-- Mouse Event
+
+onMouseDown : (Mouse.Position -> msg) -> Attribute msg
+onMouseDown tagger =
+    on "mousedown" (Json.map tagger Mouse.position)
 
 ------------------------------------------------------------
 -- Native (Mice)
@@ -534,4 +579,23 @@ onFocusOut tagger =
 
 doFocus : String -> Bool
 doFocus id = Native.Mice.doFocus id
+
+calcTextWidth : String -> String -> Int
+calcTextWidth id txt = Native.Mice.calcTextWidth id txt
+
+type alias Rect =
+    { left :Int
+    , top : Int
+    , right: Int
+    , bottom : Int
+    , x : Int
+    , y : Int
+    , width :Int
+    , height : Int
+    }
+
+
+getBoundingClientRect: String -> Rect
+getBoundingClientRect id = Native.Mice.getBoundingClientRect id
+
 
