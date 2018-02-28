@@ -214,6 +214,21 @@ keyDown e model =
             ( delete model (model.cursor.row, model.cursor.column)
               |> eventMemorize ("D:" ++ keyboarEvent_toString e)
             , Cmd.none)
+        90 -> -- 'Z'
+            -- note: ためしに Ctrl-Z で undo を実装したが、
+            --       textareaの持つ undo機能が発動し、
+            --       （空文字の）input がされてしまう不具合を発見.
+            --       結果、まだ「使えない」実装に。
+            --       どう対処したものか...
+            if (e.ctrlKey && not e.altKey  && not e.metaKey && not e.shiftKey)
+            then
+                ( undo model
+                  |> eventMemorize ("D:*" ++ keyboarEvent_toString e)
+                , Cmd.none)
+            else
+                ( model
+                  |> eventMemorize ("D:"++ keyboarEvent_toString e)
+                , Cmd.none)
         _ ->
             ( model
               |> eventMemorize ("D:"++ keyboarEvent_toString e)
@@ -510,6 +525,8 @@ delete_proc model (row, col) =
 
 undo : Model -> Model
 undo model =
+    -- todo: ちゃんと実装する。
+    --       現存の編集イベントを組み合わせて強引に実現している。汚い。
     ( case List.head model.history of
           Nothing -> model
           Just cmd ->
@@ -518,11 +535,9 @@ undo model =
                         let
                             delete_n = (\ c m ->
                                             if c <= 0 then m
-                                            else
-                                                let
-                                                    (mp, s) = backspace_proc m (m.cursor.row, m.cursor.column)
-                                                in
-                                                    delete_n (c - 1) mp 
+                                            else backspace_proc m (m.cursor.row, m.cursor.column)
+                                                 |> Tuple.first
+                                                 |> delete_n (c - 1)
                                        )
                             ls      = String.lines str
                             r_delta = (List.length ls) - 1
@@ -537,6 +552,7 @@ undo model =
                                 { model
                                     | cursor = (Cursor (row + r_delta) (col + c_delta + 1))
                                 }
+                             |> eventMemorize ("<undo(ins:" ++ str ++ ")>")
 
                     Cmd_Backspace (row, col) str ->
                         let
@@ -550,9 +566,11 @@ undo model =
                                       |> (+) -1
                         in
                             insert_proc model (row - r_delta, col - c_delta - 1) str
+                            |> eventMemorize "<undo(bs)>"
 
                     Cmd_Delete (row, col) str    ->
                         insert_proc model (row, col) str
+                        |> eventMemorize "<undo(del)>"
 
               )
               |> (\ m -> {m | history = List.drop 1 m.history })
