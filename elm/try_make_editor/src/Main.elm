@@ -5,6 +5,7 @@ import Json.Encode as Encode
 import Json.Decode as Json
 
 import Editor.Editor as Editor
+import Editor.Buffer as Buffer
 
 main : Program Never Model Msg
 main =
@@ -69,13 +70,13 @@ update msg model =
 
         Backspace ->
             ( { model
-                  | editor = Editor.backspace model.editor (model.editor.cursor.row, model.editor.cursor.column)
+                  | editor = Editor.backspace model.editor (model.editor.buffer.cursor.row, model.editor.buffer.cursor.column)
               }
             , Cmd.none)
 
         Delete ->
             ( { model
-                  | editor = Editor.delete model.editor (model.editor.cursor.row, model.editor.cursor.column)
+                  | editor = Editor.delete model.editor (model.editor.buffer.cursor.row, model.editor.buffer.cursor.column)
               }
             , Cmd.none)
 
@@ -118,7 +119,7 @@ view model =
               , style [ ("background-color","black")
                       , ("color", "white")
                       ]
-              ] [ text <| "(" ++ (toString model.editor.cursor.row) ++ ", " ++ (toString model.editor.cursor.column) ++ ")"
+              ] [ text <| "(" ++ (toString model.editor.buffer.cursor.row) ++ ", " ++ (toString model.editor.buffer.cursor.column) ++ ")"
                 , text <| if model.editor.enableComposer then ("[IME] " ++ (Maybe.withDefault "" model.editor.compositionData) ) else "" 
                 ]
         , div [] [ button [ onClick MoveBackword ] [text "←"]
@@ -147,13 +148,13 @@ view model =
                                    celstyle = style [("text-wrap", "none"), ("white-space","nowrap"), ("color", "gray")]
                                in
                                    case c of
-                                       Editor.Cmd_Insert (row, col) str ->
+                                       Buffer.Cmd_Insert (row, col) str ->
                                            div [celstyle] [ "Ins" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                                       Editor.Cmd_Backspace (row, col) str ->
+                                       Buffer.Cmd_Backspace (row, col) str ->
                                            div [celstyle] [ "Bs_" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                                       Editor.Cmd_Delete (row, col) str ->
+                                       Buffer.Cmd_Delete (row, col) str ->
                                            div [celstyle] [ "Del" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                          ) model.editor.history
+                          ) model.editor.buffer.history
                     )
               , div [ style [ ("overflow","scroll")
                             , ("width", "calc( 100% - 2px )")
