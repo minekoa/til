@@ -33,12 +33,12 @@ Nativeモジュールで以下のようなJavaScriptを作り、そちらを登�
 
 ```javascript
   function setPreventDefaultKeyShortcut (_id) {
-	  const element = document.getElementById(_id); 
+      const element = document.getElementById(_id); 
       if (element == null) {
           return false;
       }
 
-	  element.addEventListener( "keydown", e => {
+      element.addEventListener( "keydown", e => {
           if (e.altKey || e.ctrlKey) {
               e.preventDefault();
           }
@@ -74,27 +74,27 @@ Nativeモジュールで以下のようなJavaScriptを作り、そちらを登�
 | Ctrl-PgUp       | ☓         | 開いている前のタブに移動する                   |
 | Ctrl-1 〜 Ctrl-8| ○         | 特定のタブに移動する                           |
 | Ctrl-9          | ○         | 最後のタブに移動する                           |
-| Alt-Home        |            | ホームページを現在のタブで開く                 |
+| Alt-Home        | ○         | ホームページを現在のタブで開く                 |
 | Alt-←          | ○         | 現在のタブの閲覧履歴の中で前にあるページを開く |
 | Alt-→          | ○         | 現在のタブの閲覧履歴の中で次にあるページを開く |
 | Ctrl-w          | ☓         | 現在のタブを閉じる                             |
 | Ctrl-F4         | ☓         | 現在のタブを閉じる                             |
-| Ctrl-Shift-w    |            | 開いているすべてのタブとブラウザを閉じる       |
+| Ctrl-Shift-w    | ☓         | 開いているすべてのタブとブラウザを閉じる       |
 | Alt-Space-n     |            | 現在のウィンドウを最小化する                   |
 | Alt-Space-x     |            | 現在のウィンドウを最大化する                   |
 | Alt-F4          |            | 現在のウィンドウを閉じる                       |
-| Ctrl-Shift-q    |            | Google Chrome を終了する                       |
+| Ctrl-Shift-q    | ☓         | Google Chrome を終了する                       |
 
 
 (Google Chrome 機能のショートカット)
 
 |ショートカット  |抑止できる？|備考                                                 |
 |----------------|------------|-----------------------------------------------------|
-| Alt-f          |            | Chrome メニューを開く                               |
-| Alt-e          |            | Chrome メニューを開く                               |
-| F10            |            | Chrome メニューを開く                               |
+| Alt-f          | ○         | Chrome メニューを開く                               |
+| Alt-e          | ○         | Chrome メニューを開く                               |
+| F10            | -          | Chrome メニューを開く                               |
 | Ctrl-Shift-b   | ○         | ブックマーク バーの表示と非表示を切り替える         |
-| Ctrl-Shift-o   |            | ブックマーク マネージャを開く                       |
+| Ctrl-Shift-o   | ○         | ブックマーク マネージャを開く                       |
 | Ctrl-h         | ○         | 履歴ページを新しいタブで開く                        |
 | Ctrl-j         | ○         | ダウンロード ページを新しいタブで開く               |
 | Shift-Esc      | ☓         | Chrome タスク マネージャを開く                      |
@@ -127,21 +127,21 @@ Nativeモジュールで以下のようなJavaScriptを作り、そちらを登�
 | Esc                 | -          | ページの読み込みを停止する                                  |
 | Tab                 | -          | クリック可能な項目間を移動する（順方向）                    |
 | Shift-Tab           | -          | クリック可能な項目間を移動する（逆方向）                    |
-| Ctrl-o-ファイル選択 |            | パソコンのファイルを Chrome で開く                          |
-| Ctrl-u              |            | 現在のページの HTML ソースコードを表示する（編集不可）      |
-| Ctrl-d              |            | 現在のウェブページをブックマークとして保存する              |
-| Ctrl-Shift-d        |            | 開いているすべてのタブをブックマークとして新しいフォルダに保存する |
-| F11                 |            | 全画面表示モードをオンまたはオフにする                      |
+| Ctrl-o-ファイル選択 | ○         | パソコンのファイルを Chrome で開く                          |
+| Ctrl-u              | ○         | 現在のページの HTML ソースコードを表示する（編集不可）      |
+| Ctrl-d              | ○         | 現在のウェブページをブックマークとして保存する              |
+| Ctrl-Shift-d        | ○         | 開いているすべてのタブをブックマークとして新しいフォルダに保存する |
+| F11                 | -          | 全画面表示モードをオンまたはオフにする                      |
 | Ctrl-(+)            | ○         | ページ上のすべての要素を拡大する                            |
 | Ctrl-(-)            | ○         | ページ上のすべての要素を縮小する                            |
 | Ctrl-0              | ○         | ページ上のすべての要素をデフォルトのサイズに戻す            |
-| Space               |            | ウェブページを 1 画面ずつ下にスクロールする                 |
-| PgDn                |            | ウェブページを 1 画面ずつ下にスクロールする                 |
-| Shift-Space         |            | ウェブページを 1 画面ずつ上にスクロールする                 |
-| PgUp                |            | ウェブページを 1 画面ずつ上にスクロールする                 |
-| Home                |            | ページの先頭に移動する                                      |
-| End                 |            | ページの最後に移動する                                      |
-| Shift-Wheel         |            | ページを水平方向にスクロールする                            |
+| Space               | -          | ウェブページを 1 画面ずつ下にスクロールする                 |
+| PgDn                | -          | ウェブページを 1 画面ずつ下にスクロールする                 |
+| Shift-Space         | -          | ウェブページを 1 画面ずつ上にスクロールする                 |
+| PgUp                | -          | ウェブページを 1 画面ずつ上にスクロールする                 |
+| Home                | -          | ページの先頭に移動する                                      |
+| End                 | -          | ページの最後に移動する                                      |
+| Shift-Wheel         | -          | ページを水平方向にスクロールする                            |
 | Ctrl-←             |            | テキスト欄内で前にある単語の先頭にカーソルを移動する        |
 | Ctrl-→             |            | テキスト欄内で次にある単語の後ろにカーソルを移動する        |
 | Ctrl-Bs             |            | テキスト欄内で前にある単語を削除する                        |
