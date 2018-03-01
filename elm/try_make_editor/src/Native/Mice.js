@@ -32,10 +32,26 @@ var _minekoa$project$Native_Mice = function() {
       return rect;
   }
 
+  function setPreventDefaultKeyShortcut (_id) {
+	  const element = document.getElementById(_id); 
+      if (element == null) {
+          return false;
+      }
+
+	  element.addEventListener( "keydown", e => {
+          if (e.altKey || e.ctrlKey) {
+              e.preventDefault();
+          }
+      });
+      return true;
+  }                              
+        
+
   return {
       doFocus: doFocus,
       calcTextWidth: F2(calcTextWidth),
-      getBoundingClientRect: getBoundingClientRect
+      getBoundingClientRect: getBoundingClientRect,
+      setPreventDefaultKeyShortcut: setPreventDefaultKeyShortcut
   }
 }();
 

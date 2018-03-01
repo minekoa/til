@@ -30,6 +30,7 @@ type alias Model =
     -- for debug
     , event_memo : List String
     , xy : Mouse.Position
+    , isPreventedDefaultKeyShortcut : Bool
     }
 
 init : String -> String -> Model
@@ -43,7 +44,7 @@ init id text =
 
           []                     -- event_memo
           (Mouse.Position 0 0)
-
+          False                  --preventedKeyShortcut
 
 -- frame > cursor blink
 
@@ -111,13 +112,18 @@ update msg model =
             compositionEnd data model
 
         FocusIn _ ->
-            ( {model| focus = True}
+            ( {model
+                  | focus = True
+                  , isPreventedDefaultKeyShortcut = if model.isPreventedDefaultKeyShortcut
+                                                    then model.isPreventedDefaultKeyShortcut
+                                                    else setPreventDefaultKeyShortcut (model.id ++ "-input") -- todo: タスクなりにしないとなー。initのタイミングだとdomが出来ていない問題もある。とりあえずの実装。
+              }
             , Cmd.none)
         FocusOut _ ->
             ( {model|focus = False}
             , Cmd.none)
         SetFocus ->
-            ( {model | focus = doFocus (model.id ++ "-input")}
+            ( {model|focus = doFocus (model.id ++ "-input")}
             , Cmd.none )
 
         DragStart row xy ->
@@ -149,52 +155,33 @@ update msg model =
 
 
 
+keymapper : (Bool, Bool, Bool, Int) -> (Model -> Model)
+keymapper (ctrl, alt, shift, keycode) =
+    case (ctrl, alt, shift, keycode) of
+        (False, False, False,  37) -> moveBackward -- '←'
+        (False, False, False,  38) -> movePrevios  -- '↑'
+        (False, False, False,  39) -> moveForward  -- '→'
+        (False, False, False,  40) -> moveNext     -- '↓'
+        (False, False, _,       8) -> (\m -> backspace m (Buffer.nowCursorPos m.buffer)) -- BS
+        (False, False, False,  46) -> (\m -> delete m (Buffer.nowCursorPos m.buffer))    -- DEL
+
+        (True,  False, False,  90) -> undo         -- 'C-z'
+
+        -- emacs like bind
+        (True,  False, False,  70) -> moveForward  --  'C-f'
+        (True,  False, False,  66) -> moveBackward --  'C-b'
+        (True,  False, False,  78) -> moveNext     --  'C-n'
+        (True,  False, False,  80) -> movePrevios  --  'C-p'
+        (True,  False, False,  72) -> (\m -> backspace m (Buffer.nowCursorPos m.buffer))   -- 'C-h'
+        (True,  False, False,  77) -> (\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") -- 'C-m'
+
+        _                          -> (\m -> m)
+
 keyDown : KeyboardEvent -> Model -> (Model, Cmd Msg)
 keyDown e model =
-    case e.keyCode of
-        37 -> -- '←'
-            ( moveBackward model
-              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
-            , Cmd.none )
-        38 -> -- '↑'
-            ( movePrevios model
-              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
-            , Cmd.none)
-        39 -> -- '→'
-            ( moveForward model
-              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
-            , Cmd.none)
-        40 -> -- '↓'
-            ( moveNext model
-              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
-            , Cmd.none)
-        8 -> -- bs
-            ( backspace model (Buffer.nowCursorPos model.buffer)
-              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
-            , Cmd.none)
-        46 -> -- del
-            ( delete model (Buffer.nowCursorPos model.buffer)
-              |> eventMemorize ("D:" ++ keyboarEvent_toString e)
-            , Cmd.none)
-        90 -> -- 'Z'
-            -- note: ためしに Ctrl-Z で undo を実装したが、
-            --       textareaの持つ undo機能が発動し、
-            --       （空文字の）input がされてしまう不具合を発見.
-            --       結果、まだ「使えない」実装に。
-            --       どう対処したものか...
-            if (e.ctrlKey && not e.altKey  && not e.metaKey && not e.shiftKey)
-            then
-                ( undo model
-                  |> eventMemorize ("D:*" ++ keyboarEvent_toString e)
-                , Cmd.none)
-            else
-                ( model
-                  |> eventMemorize ("D:"++ keyboarEvent_toString e)
-                , Cmd.none)
-        _ ->
-            ( model
-              |> eventMemorize ("D:"++ keyboarEvent_toString e)
-            , Cmd.none)
+    ( keymapper (e.ctrlKey, e.altKey, e.shiftKey, e.keyCode) model
+      |> eventMemorize ("D:" ++ keyboarEvent_toString e)
+    , Cmd.none )
 
 compositionStart : String -> Model -> (Model, Cmd Msg)
 compositionStart data model =
@@ -202,7 +189,7 @@ compositionStart data model =
           | compositionData = Just data
           , enableComposer = True
       }
-      |> inputBufferClear
+      |> inputBufferClear -- 直前にenterでない確定をした場合向け
       |> blinkBlock
       |> eventMemorize ("Cs{" ++ data ++ "} ")
     , Cmd.none
@@ -211,7 +198,6 @@ compositionStart data model =
 compositionUpdate : String -> Model -> (Model, Cmd Msg)
 compositionUpdate data model =
     ( { model | compositionData = Just data }
-      |> inputBufferClear
       |> blinkBlock
       |> eventMemorize ("Cu{" ++ data ++ "} ")
     , Cmd.none
@@ -598,4 +584,5 @@ type alias Rect =
 getBoundingClientRect: String -> Rect
 getBoundingClientRect id = Native.Mice.getBoundingClientRect id
 
-
+setPreventDefaultKeyShortcut : String -> Bool
+setPreventDefaultKeyShortcut id = Native.Mice.setPreventDefaultKeyShortcut id
