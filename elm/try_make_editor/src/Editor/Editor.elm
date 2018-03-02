@@ -15,10 +15,18 @@ import Native.Mice
 
 -}
 
+type alias Selection =
+    { begin : (Int, Int)
+    , end : (Int, Int)
+    }
+
 type alias Model =
     { id : String -- frame id
 
     , buffer : Buffer.Model
+
+    -- ?
+    , selection : Maybe Selection
 
     -- frame
     , input_buffer : String
@@ -37,6 +45,7 @@ init : String -> String -> Model
 init id text =
     Model id                     -- id
           (Buffer.init text)
+          Nothing                -- selection
           ""                     -- input_buffer
           False Nothing          -- COMPOSER STATE
           False                  -- focus
@@ -154,7 +163,6 @@ update msg model =
             , Cmd.none )
 
 
-
 keymapper : (Bool, Bool, Bool, Int) -> (Model -> Model)
 keymapper (ctrl, alt, shift, keycode) =
     case (ctrl, alt, shift, keycode) of
@@ -162,6 +170,10 @@ keymapper (ctrl, alt, shift, keycode) =
         (False, False, False,  38) -> movePrevios  -- '↑'
         (False, False, False,  39) -> moveForward  -- '→'
         (False, False, False,  40) -> moveNext     -- '↓'
+        (False, False, True ,  37) -> selectBackward -- '←'
+        (False, False, True ,  38) -> selectPrevios  -- '↑'
+        (False, False, True ,  39) -> selectForward  -- '→'
+        (False, False, True ,  40) -> selectNext     -- '↓'
         (False, False, _,       8) -> (\m -> backspace m (Buffer.nowCursorPos m.buffer)) -- BS
         (False, False, False,  46) -> (\m -> delete m (Buffer.nowCursorPos m.buffer))    -- DEL
 
@@ -258,27 +270,74 @@ moveNext model =
 
 
 ------------------------------------------------------------
+-- selection
+------------------------------------------------------------
+
+selectionUpdate: (Int, Int) -> Model -> Model
+selectionUpdate (row, col) model =
+    case model.selection of
+        Nothing ->
+            { model | selection = Just (Selection (row, col) (row, col + 1)) }
+        Just sel ->
+            { model | selection = Just ({sel| end = (row, col) }) }
+                                            
+selectionClear : Model -> Model
+selectionClear model =
+    { model | selection = Nothing }
+
+
+selectBackward: Model -> Model
+selectBackward model =
+    model
+        |> moveBackward
+        |> (\ m -> selectionUpdate (m.buffer.cursor.row, m.buffer.cursor.column) m)
+
+selectForward: Model -> Model
+selectForward model =
+    model
+        |> moveForward
+        |> (\ m -> selectionUpdate (m.buffer.cursor.row, m.buffer.cursor.column) m)
+
+selectPrevios: Model -> Model
+selectPrevios model =
+    model
+        |> movePrevios
+        |> (\ m -> selectionUpdate (m.buffer.cursor.row, m.buffer.cursor.column) m)
+
+selectNext: Model -> Model
+selectNext model =
+    model
+        |> moveNext
+        |> (\ m -> selectionUpdate (m.buffer.cursor.row, m.buffer.cursor.column) m)
+
+
+------------------------------------------------------------
 -- edit
 ------------------------------------------------------------
 
 insert: Model -> (Int, Int)  -> String -> Model
 insert model (row, col) text =
     { model | buffer = Buffer.insert (row, col) text model.buffer }
+    |> selectionClear
     |> blinkBlock
+
 
 backspace: Model -> (Int, Int) -> Model
 backspace model (row, col) =
     { model | buffer = Buffer.backspace (row, col) model.buffer}
+    |> selectionClear
     |> blinkBlock
 
 delete: Model -> (Int, Int) -> Model
 delete model (row, col) =
     { model | buffer = Buffer.delete (row, col) model.buffer}
+    |> selectionClear
     |> blinkBlock
 
 undo : Model -> Model
 undo model =
     { model | buffer = Buffer.undo model.buffer }
+    |> selectionClear
     |> blinkBlock
 
 
@@ -327,6 +386,7 @@ codeArea model =
     div [ class "code-area" ]
         [ ruler (model.id ++ "-ruler")
         , cursorLayer2 model
+        , markerLayer model
         , codeLayer model
         ]
 
@@ -376,7 +436,7 @@ cursorLayer2 model =
        思いついたのでやってみたらうまく行った
        けど、みんなこれをやってないの、なにか落とし穴あるからなのかな？
     -}
-    div [ class "cursors"
+    div [ class "cursor-layer"
         , style [("position", "absolute")]
         ]
         [ div [style [ ("position", "relative")
@@ -415,6 +475,54 @@ cursorLayer2 model =
                ]
         ]
 
+markerLayer: Model -> Html Msg
+markerLayer model =
+    case model.selection of
+        Nothing ->
+            text ""
+
+        Just sel ->
+            let
+                bpos = sel.begin
+                epos = sel.end
+
+                ms = List.range (Tuple.first bpos) (Tuple.first epos)
+                   |> List.map (\ r ->
+                                    let
+                                        cb = if r == (Tuple.first bpos)
+                                             then bpos |> Tuple.second
+                                             else 0
+                                        ce = if r == (Tuple.first epos)
+                                             then epos |> Tuple.second
+                                             else String.length <| (Buffer.line r model.buffer.contents |> Maybe.withDefault "")
+                                    in
+                                        {row =r, begin_col = cb, end_col = ce}
+                               )
+            in
+                div [ class "marker-layer"
+                    , style [("position", "absolute")]
+                    ]
+                    ( List.map (\ m ->
+                                  div [ style [ ("position", "relative")
+                                              , ("top" , (m.row |> toString) ++ "em")
+                                              , ("left", "0")
+                                              ]
+                                      ]
+                                      [ padToCursor (m.row, m.begin_col) model
+                                      , div [ class "selection"
+                                            , style [ ("backgound-color", "blue")
+                                                    , ("color","white")
+                                                    , ("white-space", "pre")
+                                                    , ("border","none"), ("padding", "none"), ("margin", "none")
+                                                    ]
+                                            ]
+                                            [ Buffer.line m.row model.buffer.contents |> Maybe.withDefault ""
+                                              |> String.dropLeft m.begin_col
+                                              |> String.left (m.end_col - m.begin_col)
+                                              |> text
+                                            ]
+                                      ]
+                             ) ms )
 
 pad : Model -> Html msg
 pad model =
@@ -429,6 +537,21 @@ pad model =
                  ]
          ]
          [ Buffer.line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text ]
+
+padToCursor : (Int, Int) -> Model -> Html msg
+padToCursor pos model =
+    let
+        contents = model.buffer.contents
+    in
+    span [ class "pad"
+         , style [ ("position", "relative")
+                 , ("white-space", "pre")
+                 , ("visibility", "hidden")                     
+                 ]
+         ]
+         [ Buffer.line (Tuple.first pos) contents |> Maybe.withDefault "" |> String.left (Tuple.second pos) |> text ]
+
+
 
 ruler : String -> Html msg
 ruler base_id = 
