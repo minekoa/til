@@ -162,30 +162,36 @@ update msg model =
             ( {model | blink = blinkTransition model.blink }
             , Cmd.none )
 
+type KeyCombination = KeyCombination Bool Bool Bool Int
 
 keymapper : (Bool, Bool, Bool, Int) -> (Model -> Model)
 keymapper (ctrl, alt, shift, keycode) =
-    case (ctrl, alt, shift, keycode) of
-        (False, False, False,  37) -> moveBackward -- '←'
-        (False, False, False,  38) -> movePrevios  -- '↑'
-        (False, False, False,  39) -> moveForward  -- '→'
-        (False, False, False,  40) -> moveNext     -- '↓'
-        (False, False, True ,  37) -> selectBackward -- '←'
-        (False, False, True ,  38) -> selectPrevios  -- '↑'
-        (False, False, True ,  39) -> selectForward  -- '→'
-        (False, False, True ,  40) -> selectNext     -- '↓'
-        (False, False, _,       8) -> (\m -> backspace m (Buffer.nowCursorPos m.buffer)) -- BS
-        (False, False, False,  46) -> (\m -> delete m (Buffer.nowCursorPos m.buffer))    -- DEL
+    -- todo:
+    -- 3つ組以上のタプルのパターンマッチはビルド時間がとても長くなる問題があるので
+    -- コンストラクタにしてみたが変わらなかった。
+    -- あとで別の仕組みを考えよう
+    case KeyCombination ctrl alt shift keycode of
+        KeyCombination False False False  37 -> moveBackward -- '←'
+        KeyCombination False False False  38 -> movePrevios  -- '↑'
+        KeyCombination False False False  39 -> moveForward  -- '→'
+        KeyCombination False False False  40 -> moveNext     -- '↓'
+        KeyCombination False False True   37 -> selectBackward -- '←'
+        KeyCombination False False True   38 -> selectPrevios  -- '↑'
+        KeyCombination False False True   39 -> selectForward  -- '→'
+        KeyCombination False False True   40 -> selectNext     -- '↓'
 
-        (True,  False, False,  90) -> undo         -- 'C-z'
+        KeyCombination False False _       8 -> (\m -> backspace m (Buffer.nowCursorPos m.buffer)) -- BS
+        KeyCombination False False False  46 -> (\m -> delete m (Buffer.nowCursorPos m.buffer))    -- DEL
+
+        KeyCombination True  False False  90 -> undo         -- 'C-z'
 
         -- emacs like bind
-        (True,  False, False,  70) -> moveForward  --  'C-f'
-        (True,  False, False,  66) -> moveBackward --  'C-b'
-        (True,  False, False,  78) -> moveNext     --  'C-n'
-        (True,  False, False,  80) -> movePrevios  --  'C-p'
-        (True,  False, False,  72) -> (\m -> backspace m (Buffer.nowCursorPos m.buffer))   -- 'C-h'
-        (True,  False, False,  77) -> (\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") -- 'C-m'
+        -- KeyCombination True  False False  70 -> moveForward  --  'C-f'
+        -- KeyCombination True  False False  66 -> moveBackward --  'C-b'
+        -- KeyCombination True  False False  78 -> moveNext     --  'C-n'
+        -- KeyCombination True  False False  80 -> movePrevios  --  'C-p'
+        -- KeyCombination True  False False  72 -> (\m -> backspace m (Buffer.nowCursorPos m.buffer))   -- 'C-h'
+        -- KeyCombination True  False False  77 -> (\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") -- 'C-m'
 
         _                          -> (\m -> m)
 
@@ -251,36 +257,56 @@ composerDisable model =
 moveForward : Model -> Model
 moveForward model =
     { model | buffer = Buffer.moveForward model.buffer }
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 moveBackward : Model -> Model
 moveBackward model =
     { model | buffer = Buffer.moveBackward model.buffer }
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 movePrevios : Model -> Model
 movePrevios model =
     { model | buffer = Buffer.movePrevios model.buffer }
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 moveNext : Model -> Model
 moveNext model =
     { model | buffer = Buffer.moveNext model.buffer }
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 
 ------------------------------------------------------------
 -- selection
 ------------------------------------------------------------
 
-selectionUpdate: (Int, Int) -> Model -> Model
-selectionUpdate (row, col) model =
-    case model.selection of
-        Nothing ->
-            { model | selection = Just (Selection (row, col) (row, col + 1)) }
-        Just sel ->
-            { model | selection = Just ({sel| end = (row, col) }) }
-                                            
+selection_update: (Int, Int) -> Selection -> Selection
+selection_update (row, col) sel =
+    {sel| end = (row, col)}
+
+markSetIfNothing : Model -> Model
+markSetIfNothing model =
+    let
+        row = model.buffer.cursor.row
+        col =  model.buffer.cursor.column
+    in
+        case model.selection of
+            Nothing ->
+                { model | selection = Just <| Selection (row, col) (row, col) }
+            Just sel ->
+                model
+
+selectionUpdate : Model -> Model
+selectionUpdate model =
+    let
+        row = model.buffer.cursor.row
+        col =  model.buffer.cursor.column
+    in
+        { model | selection = model.selection |> Maybe.andThen (selection_update (row, col) >> Just) }
+
 selectionClear : Model -> Model
 selectionClear model =
     { model | selection = Nothing }
@@ -289,26 +315,34 @@ selectionClear model =
 selectBackward: Model -> Model
 selectBackward model =
     model
-        |> moveBackward
-        |> (\ m -> selectionUpdate (m.buffer.cursor.row, m.buffer.cursor.column) m)
+        |> markSetIfNothing
+        |> (\ m -> { m | buffer = Buffer.moveBackward m.buffer })
+        |> selectionUpdate
+        |> blinkBlock
 
 selectForward: Model -> Model
 selectForward model =
     model
-        |> moveForward
-        |> (\ m -> selectionUpdate (m.buffer.cursor.row, m.buffer.cursor.column) m)
+        |> markSetIfNothing
+        |> (\m -> { m | buffer = Buffer.moveForward m.buffer })
+        |> selectionUpdate
+        |> blinkBlock
 
 selectPrevios: Model -> Model
 selectPrevios model =
     model
-        |> movePrevios
-        |> (\ m -> selectionUpdate (m.buffer.cursor.row, m.buffer.cursor.column) m)
+        |> markSetIfNothing
+        |> (\m -> { m | buffer = Buffer.movePrevios m.buffer })
+        |> selectionUpdate
+        |> blinkBlock
 
 selectNext: Model -> Model
 selectNext model =
     model
-        |> moveNext
-        |> (\ m -> selectionUpdate (m.buffer.cursor.row, m.buffer.cursor.column) m)
+        |> markSetIfNothing
+        |> (\m -> { m | buffer = Buffer.moveNext m.buffer })
+        |> selectionUpdate
+        |> blinkBlock
 
 
 ------------------------------------------------------------
@@ -483,8 +517,14 @@ markerLayer model =
 
         Just sel ->
             let
-                bpos = sel.begin
-                epos = sel.end
+                isPreviosPos = (\p q ->
+                                    if Tuple.first p == Tuple.first q
+                                    then Tuple.second p < Tuple.second q
+                                    else Tuple.first p < Tuple.first q
+                               )
+
+                bpos = if (isPreviosPos sel.begin sel.end) then sel.begin else sel.end
+                epos = if (isPreviosPos sel.begin sel.end) then sel.end else sel.begin
 
                 ms = List.range (Tuple.first bpos) (Tuple.first epos)
                    |> List.map (\ r ->
@@ -503,14 +543,15 @@ markerLayer model =
                     , style [("position", "absolute")]
                     ]
                     ( List.map (\ m ->
-                                  div [ style [ ("position", "relative")
+                                  div [ style [ ("position", "absolute")
+                                              , ("display", "inline-flex")
                                               , ("top" , (m.row |> toString) ++ "em")
                                               , ("left", "0")
                                               ]
                                       ]
                                       [ padToCursor (m.row, m.begin_col) model
                                       , div [ class "selection"
-                                            , style [ ("backgound-color", "blue")
+                                            , style [ ("background-color", "blue")
                                                     , ("color","white")
                                                     , ("white-space", "pre")
                                                     , ("border","none"), ("padding", "none"), ("margin", "none")

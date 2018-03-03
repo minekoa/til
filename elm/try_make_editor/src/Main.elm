@@ -121,6 +121,12 @@ view model =
                       ]
               ] [ text <| "(" ++ (toString model.editor.buffer.cursor.row) ++ ", " ++ (toString model.editor.buffer.cursor.column) ++ ")"
                 , text <| if model.editor.enableComposer then ("[IME] " ++ (Maybe.withDefault "" model.editor.compositionData) ) else "" 
+                , model.editor.selection |> Maybe.andThen (\s-> Just <| " select:(" ++ (s.begin |> Tuple.first |> toString)
+                                                               ++ "," ++ (s.begin |> Tuple.second |> toString) 
+                                                               ++ ")-(" ++ (s.end |> Tuple.first |> toString)
+                                                               ++ "," ++ (s.end |> Tuple.second |> toString) ++ ")"
+                                                          ) |> Maybe.withDefault "" |> text
+
                 ]
         , div [] [ button [ onClick MoveBackword ] [text "←"]
                  , button [ onClick MovePrevios  ] [text "↑"]
