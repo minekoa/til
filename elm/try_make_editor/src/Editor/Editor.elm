@@ -162,38 +162,61 @@ update msg model =
             ( {model | blink = blinkTransition model.blink }
             , Cmd.none )
 
-type KeyCombination = KeyCombination Bool Bool Bool Int
+
+
+
 
 keymapper : (Bool, Bool, Bool, Int) -> (Model -> Model)
 keymapper (ctrl, alt, shift, keycode) =
-    -- todo:
-    -- 3つ組以上のタプルのパターンマッチはビルド時間がとても長くなる問題があるので
-    -- コンストラクタにしてみたが変わらなかった。
-    -- あとで別の仕組みを考えよう
-    case KeyCombination ctrl alt shift keycode of
-        KeyCombination False False False  37 -> moveBackward -- '←'
-        KeyCombination False False False  38 -> movePrevios  -- '↑'
-        KeyCombination False False False  39 -> moveForward  -- '→'
-        KeyCombination False False False  40 -> moveNext     -- '↓'
-        KeyCombination False False True   37 -> selectBackward -- '←'
-        KeyCombination False False True   38 -> selectPrevios  -- '↑'
-        KeyCombination False False True   39 -> selectForward  -- '→'
-        KeyCombination False False True   40 -> selectNext     -- '↓'
+    let
+        keymap = [ {ctrl=False, alt=False, shift=False, code= 37, f=moveBackward } -- '←'
+                 , {ctrl=False, alt=False, shift=False, code= 38, f=movePrevios }  -- '↑'
+                 , {ctrl=False, alt=False, shift=False, code= 39, f=moveForward }  -- '→'
+                 , {ctrl=False, alt=False, shift=False, code= 40, f=moveNext }     -- '↓'
 
-        KeyCombination False False _       8 -> (\m -> backspace m (Buffer.nowCursorPos m.buffer)) -- BS
-        KeyCombination False False False  46 -> (\m -> delete m (Buffer.nowCursorPos m.buffer))    -- DEL
+                 , {ctrl=False, alt=False, shift=True , code= 37, f=selectBackward } -- 'S-←'
+                 , {ctrl=False, alt=False, shift=True , code= 38, f=selectPrevios }  -- 'S-↑'
+                 , {ctrl=False, alt=False, shift=True , code= 39, f=selectForward }  -- 'S-→'
+                 , {ctrl=False, alt=False, shift=True , code= 40, f=selectNext }     -- 'S-↓' 
 
-        KeyCombination True  False False  90 -> undo         -- 'C-z'
+--                 , {ctrl=False, alt=False, shift=Nothihg, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) }
+                 , {ctrl=False, alt=False, shift=False, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) } -- BS
+                 , {ctrl=False, alt=False, shift=False, code= 46, f=(\m -> delete m (Buffer.nowCursorPos m.buffer))  }   -- DEL
 
-        -- emacs like bind
-        -- KeyCombination True  False False  70 -> moveForward  --  'C-f'
-        -- KeyCombination True  False False  66 -> moveBackward --  'C-b'
-        -- KeyCombination True  False False  78 -> moveNext     --  'C-n'
-        -- KeyCombination True  False False  80 -> movePrevios  --  'C-p'
-        -- KeyCombination True  False False  72 -> (\m -> backspace m (Buffer.nowCursorPos m.buffer))   -- 'C-h'
-        -- KeyCombination True  False False  77 -> (\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") -- 'C-m'
+                 , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
 
-        _                          -> (\m -> m)
+                 -- emacs like binds
+                 , {ctrl=True , alt=False, shift=False, code= 70, f=moveForward } --  'C-f'
+                 , {ctrl=True , alt=False, shift=False, code= 66, f=moveBackward }--  'C-b'
+                 , {ctrl=True , alt=False, shift=False, code= 78, f=moveNext }    --  'C-n'
+                 , {ctrl=True , alt=False, shift=False, code= 80, f=movePrevios } --  'C-p'
+                 , {ctrl=True , alt=False, shift=False, code= 72, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) }  -- 'C-h'
+                 , {ctrl=True , alt=False, shift=False, code= 68, f=(\m -> delete m (Buffer.nowCursorPos m.buffer))  }    -- 'C-d'
+                 , {ctrl=True , alt=False, shift=False, code= 77, f=(\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") }-- 'C-m'
+                 ]
+
+        search = (\ (ctrl, alt, shift, keycode) l ->
+                      case l of
+                          [] ->
+                              Nothing
+                          x :: xs ->
+                              if (keycode == x.code)
+                                  && (ctrl == x.ctrl) && (alt == x.alt) && (shift == x.shift)
+                              then Just x.f
+                              else search (ctrl, alt, shift, keycode) xs
+                 )
+    in
+        -- note: 4つ以上の組でのパターンマッチを記述するとビルド時間が非常に長くなる問題があるので、(elm 0.18)
+        --       パターンマッチでは書かない
+
+        -- note: Dict にすべきか悩んだが、
+        --       モディファイヤ * を導入するかも、なのと
+        --       複数のkeymap を合成して早いものがちマッチとかやるかも、なのと
+        --       nストロークキーマッチをやるかも、なので
+        --       線形サーチで書いている
+        search (ctrl, alt, shift, keycode) keymap
+            |> Maybe.withDefault (\m -> m)
+                                  
 
 keyDown : KeyboardEvent -> Model -> (Model, Cmd Msg)
 keyDown e model =
