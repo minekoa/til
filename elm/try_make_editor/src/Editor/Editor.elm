@@ -179,9 +179,13 @@ keymapper (ctrl, alt, shift, keycode) =
 
 --                 , {ctrl=False, alt=False, shift=Nothihg, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) }
                  , {ctrl=False, alt=False, shift=False, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) } -- BS
-                 , {ctrl=False, alt=False, shift=False, code= 46, f=(\m -> delete m (Buffer.nowCursorPos m.buffer))  }   -- DEL
+                 , {ctrl=False, alt=False, shift=False, code= 46, f=(\m -> case m.selection of
+                                                                               Nothing -> delete m (Buffer.nowCursorPos m.buffer)
+                                                                               Just s  -> deleteRange m s 
+                                                                    )  }   -- DEL
 
                  , {ctrl=True , alt=False, shift=False, code= 67, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'C-c'
+                 , {ctrl=True , alt=False, shift=False, code= 88, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m) } -- 'C-x'
                  , {ctrl=True , alt=False, shift=False, code= 86, f=(\m -> pasete m (Buffer.nowCursorPos m.buffer) m.copyStore)} -- 'C-v'
                  , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
 
@@ -191,7 +195,10 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=True , alt=False, shift=False, code= 78, f=moveNext }    --  'C-n'
                  , {ctrl=True , alt=False, shift=False, code= 80, f=movePrevios } --  'C-p'
                  , {ctrl=True , alt=False, shift=False, code= 72, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) }  -- 'C-h'
-                 , {ctrl=True , alt=False, shift=False, code= 68, f=(\m -> delete m (Buffer.nowCursorPos m.buffer))  }    -- 'C-d'
+                 , {ctrl=True , alt=False, shift=False, code= 68, f=(\m -> case m.selection of
+                                                                               Nothing -> delete m (Buffer.nowCursorPos m.buffer)
+                                                                               Just s  -> deleteRange m s
+                                                                    )  }    -- 'C-d'
                  , {ctrl=True , alt=False, shift=False, code= 77, f=(\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") }-- 'C-m'
                  ]
 
@@ -390,6 +397,12 @@ delete model (row, col) =
     |> selectionClear
     |> blinkBlock
 
+deleteRange: Model -> Buffer.Range -> Model
+deleteRange model selection =
+    { model | buffer = Buffer.deleteRange selection model.buffer}
+    |> selectionClear
+    |> blinkBlock
+
 undo : Model -> Model
 undo model =
     { model | buffer = Buffer.undo model.buffer }
@@ -400,6 +413,15 @@ copy : Model -> Buffer.Range -> Model
 copy model selection =
     -- todo: クリップボード連携(クリップボードへ保存）
     { model | copyStore = Buffer.readRange selection model.buffer }
+    |> selectionClear
+    |> blinkBlock
+
+cut : Model -> Buffer.Range -> Model
+cut model selection =
+    -- todo: クリップボード連携(クリップボードへ保存）
+    { model | copyStore = Buffer.readRange selection model.buffer
+            , buffer = Buffer.deleteRange selection model.buffer
+    }
     |> selectionClear
     |> blinkBlock
 

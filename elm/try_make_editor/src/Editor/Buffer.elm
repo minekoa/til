@@ -21,6 +21,7 @@ module Editor.Buffer exposing ( Model
                               , insert
                               , backspace
                               , delete
+                              , deleteRange
                               , undo
                               )
 
@@ -243,6 +244,20 @@ delete (row, col) model =
                 |> appendHistory (Cmd_Delete (row, col) s)
 
 
+deleteRange: Range -> Model -> Model
+deleteRange range model =
+    let
+        deleted  = readRange range model
+        head_pos = if (isPreviosPos range.begin range.end) then range.begin else range.end
+    in
+        case deleted of
+            "" ->
+                model
+            _ ->
+                model
+                    |> delete_range_proc range
+                    |> appendHistory (Cmd_Delete head_pos deleted)
+
 undo : Model -> Model
 undo model =
     case List.head model.history of
@@ -381,6 +396,40 @@ delete_proc (row, col) model =
                            | contents = prows ++ (current :: nrows)
                        }
                      , Just "\n" )
+
+
+delete_range_proc : Range -> Model -> Model
+delete_range_proc sel model =
+    let
+        bpos = if (isPreviosPos sel.begin sel.end) then sel.begin else sel.end
+        epos = if (isPreviosPos sel.begin sel.end) then sel.end else sel.begin
+
+        lcnt = (Tuple.first epos) - (Tuple.first bpos)
+    in
+        case lcnt of
+            0 ->
+                let 
+                    ln  = line (Tuple.first bpos) model.contents |> Maybe.withDefault ""
+                    current = (String.left (Tuple.second bpos) ln) ++ (String.dropLeft (Tuple.second epos) ln)
+
+                    pls = List.take ((Tuple.first bpos)    ) model.contents
+                    nls = List.drop ((Tuple.first epos) + 1) model.contents
+                in
+                    { model
+                        | contents = pls ++ (current :: nls)
+                        , cursor = Cursor (Tuple.first bpos) (Tuple.second bpos)
+                    }
+            _ ->
+                let
+                    bln  = line (Tuple.first bpos) model.contents |> Maybe.withDefault "" |> String.left (Tuple.second bpos)
+                    eln  = line (Tuple.first epos) model.contents |> Maybe.withDefault "" |> String.dropLeft (Tuple.second epos)
+                    pls = List.take ((Tuple.first bpos)    ) model.contents
+                    nls = List.drop ((Tuple.first epos) + 1) model.contents
+                in
+                    { model
+                        | contents = pls ++ ((bln ++ eln) :: nls)
+                        , cursor = Cursor (Tuple.first bpos) (Tuple.second bpos)
+                    }
 
     
 undo_insert_proc : (Int, Int) -> String -> Model -> Model

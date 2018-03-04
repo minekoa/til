@@ -30,6 +30,7 @@ type Msg
     | Backspace
     | Delete
     | Copy
+    | Cut
     | Pasete
     | Undo
     | EditorMsg (Editor.Msg)
@@ -78,7 +79,9 @@ update msg model =
 
         Delete ->
             ( { model
-                  | editor = Editor.delete model.editor (Buffer.nowCursorPos model.editor.buffer)
+                  | editor =  case model.editor.selection of
+                                  Nothing -> Editor.delete model.editor (Buffer.nowCursorPos model.editor.buffer)
+                                  Just s  -> Editor.deleteRange model.editor s
               }
             , Cmd.none)
 
@@ -87,6 +90,13 @@ update msg model =
                   | editor = model.editor.selection |> Maybe.andThen (\sel -> Just <| Editor.copy model.editor sel) |> Maybe.withDefault model.editor
               }
             , Cmd.none)
+
+        Cut ->
+            ( { model
+                  | editor = model.editor.selection |> Maybe.andThen (\sel -> Just <| Editor.cut model.editor sel) |> Maybe.withDefault model.editor
+              }
+            , Cmd.none)
+
         Pasete ->
             ( { model
                   | editor = Editor.pasete model.editor (Buffer.nowCursorPos model.editor.buffer) model.editor.copyStore
@@ -149,7 +159,9 @@ view model =
                  , button [ onClick Delete ] [ text "DEL" ]
                  , text "|"
                  , button [ onClick Copy ]   [ text "Copy" ]
+                 , button [ onClick Cut ]   [ text "Cut" ]
                  , button [ onClick Pasete ] [ text "Pasete" ]
+                 , text "|"
                  , button [ onClick Undo ]   [ text "Undo" ]
                  , text "|"
                  , input [ type_ "file", id "file_open" ][]
