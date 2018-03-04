@@ -33,7 +33,7 @@ type alias Model =
     , blink : BlinkState
 
     -- for debug
-    , event_memo : List String
+    , event_log : List String
     , xy : Mouse.Position
     , isPreventedDefaultKeyShortcut : Bool
     }
@@ -49,7 +49,7 @@ init id text =
           False                  -- focus
           BlinkBlocked           -- blink
 
-          []                     -- event_memo
+          []                     -- event_log
           (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
 
@@ -103,7 +103,7 @@ update msg model =
                 False ->
                     ( insert model (Buffer.nowCursorPos model.buffer) (String.right 1 s)
                       |> inputBufferClear
-                      |> eventMemorize ("(" ++ (String.right 1 s) ++ ")")
+                      |> eventLog ("(" ++ (String.right 1 s) ++ ")")
                     , Cmd.none)
 
         KeyDown code ->
@@ -151,8 +151,8 @@ update msg model =
 
             in
                 ( { model | buffer = b2, xy = xy}
-                  |> eventMemorize ("Ds(" ++ (toString xy.x) ++ ", " ++ (toString xy.y) ++ "{lft" ++ (toString rect.left) ++")")
-                  |> eventMemorize ("CALC(" ++ ln ++ "):" ++ (toString col))
+                  |> eventLog ("Ds(" ++ (toString xy.x) ++ ", " ++ (toString xy.y) ++ "{lft" ++ (toString rect.left) ++")")
+                  |> eventLog ("CALC(" ++ ln ++ "):" ++ (toString col))
                   |> blinkBlock
                 , Cmd.none )
 
@@ -228,7 +228,7 @@ keymapper (ctrl, alt, shift, keycode) =
 keyDown : KeyboardEvent -> Model -> (Model, Cmd Msg)
 keyDown e model =
     ( keymapper (e.ctrlKey, e.altKey, e.shiftKey, e.keyCode) model
-      |> eventMemorize ("D:" ++ keyboarEvent_toString e)
+      |> eventLog ("D:" ++ keyboarEvent_toString e)
     , Cmd.none )
 
 compositionStart : String -> Model -> (Model, Cmd Msg)
@@ -239,7 +239,7 @@ compositionStart data model =
       }
       |> inputBufferClear -- 直前にenterでない確定をした場合向け
       |> blinkBlock
-      |> eventMemorize ("Cs{" ++ data ++ "} ")
+      |> eventLog ("Cs{" ++ data ++ "} ")
     , Cmd.none
     )
 
@@ -247,7 +247,7 @@ compositionUpdate : String -> Model -> (Model, Cmd Msg)
 compositionUpdate data model =
     ( { model | compositionData = Just data }
       |> blinkBlock
-      |> eventMemorize ("Cu{" ++ data ++ "} ")
+      |> eventLog ("Cu{" ++ data ++ "} ")
     , Cmd.none
     )
 
@@ -257,7 +257,7 @@ compositionEnd data model =
       |> composerDisable
       |> inputBufferClear
       |> blinkBlock
-      |> eventMemorize ("Ce{" ++ data ++ "} ")
+      |> eventLog ("Ce{" ++ data ++ "} ")
     , Cmd.none
     )
 
@@ -265,9 +265,9 @@ compositionEnd data model =
 -- control state update
 ------------------------------------------------------------
 
-eventMemorize : String -> Model -> Model
-eventMemorize s model =
-    { model | event_memo = (s :: model.event_memo) }
+eventLog : String -> Model -> Model
+eventLog s model =
+    { model | event_log = (s :: model.event_log) }
 
 inputBufferClear : Model -> Model
 inputBufferClear model =

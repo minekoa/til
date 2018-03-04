@@ -196,7 +196,7 @@ view model =
                             , ("border", "1px solid black")
                             ]
                     ] 
-                    ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_memo )
+                    ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_log )
               ]
         ]
 
