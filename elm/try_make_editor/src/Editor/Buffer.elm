@@ -3,7 +3,10 @@ module Editor.Buffer exposing ( Model
 
                               , Cursor
                               , nowCursorPos
+                              , isPreviosPos
                               , line
+                              , Range
+                              , readRange
 
                               -- history
                               , EditCommand(Cmd_Insert, Cmd_Backspace, Cmd_Delete)
@@ -51,7 +54,13 @@ defaultCursor contents =
 nowCursorPos : Model -> (Int, Int)
 nowCursorPos model = 
     ( model.cursor.row, model.cursor.column )
-            
+
+isPreviosPos : (Int, Int) -> (Int, Int) -> Bool
+isPreviosPos p q =
+    if Tuple.first p == Tuple.first q
+    then Tuple.second p < Tuple.second q
+    else Tuple.first p < Tuple.first q
+
 
 -- buffer > contents
 
@@ -69,6 +78,35 @@ maxRow : List String -> Int
 maxRow contents =
     (List.length contents) - 1
 
+-- selection
+
+type alias Range =
+    { begin : (Int, Int)
+    , end : (Int, Int)
+    }
+
+readRange : Range -> Model -> String
+readRange sel model =
+    let
+        bpos = if (isPreviosPos sel.begin sel.end) then sel.begin else sel.end
+        epos = if (isPreviosPos sel.begin sel.end) then sel.end else sel.begin
+
+        lcnt = (Tuple.first epos) - (Tuple.first bpos)
+    in
+        case lcnt of
+            0 ->
+                let 
+                    l = line (Tuple.first bpos) model.contents |> Maybe.withDefault ""
+                in
+                    l |> String.dropLeft (Tuple.second bpos) |> String.left ((Tuple.second epos) - (Tuple.second bpos))
+            _ ->
+                let
+                    bl = model.contents |> line (Tuple.first bpos) |> Maybe.withDefault "" |> String.dropLeft (Tuple.second bpos)
+                    el = model.contents |> line (Tuple.first epos) |> Maybe.withDefault "" |> String.left (Tuple.second epos)
+
+                    ls = model.contents |> List.drop ((Tuple.first bpos) + 1) |> List.take (lcnt - 1)
+                in
+                    String.join "\n" ((bl :: ls) ++ [el])
 
 ------------------------------------------------------------
 -- History
@@ -221,6 +259,8 @@ undo model =
                       insert_proc (row, col) str model
             )
             |> (\ m -> {m | history = List.drop 1 m.history })
+
+
 
 
 ------------------------------------------------------------

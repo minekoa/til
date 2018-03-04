@@ -15,10 +15,6 @@ import Native.Mice
 
 -}
 
-type alias Selection =
-    { begin : (Int, Int)
-    , end : (Int, Int)
-    }
 
 type alias Model =
     { id : String -- frame id
@@ -26,7 +22,8 @@ type alias Model =
     , buffer : Buffer.Model
 
     -- ?
-    , selection : Maybe Selection
+    , selection : Maybe Buffer.Range
+    , copyStore : String
 
     -- frame
     , input_buffer : String
@@ -46,6 +43,7 @@ init id text =
     Model id                     -- id
           (Buffer.init text)
           Nothing                -- selection
+          ""                     -- copyStore
           ""                     -- input_buffer
           False Nothing          -- COMPOSER STATE
           False                  -- focus
@@ -183,6 +181,8 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=False, alt=False, shift=False, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) } -- BS
                  , {ctrl=False, alt=False, shift=False, code= 46, f=(\m -> delete m (Buffer.nowCursorPos m.buffer))  }   -- DEL
 
+                 , {ctrl=True , alt=False, shift=False, code= 67, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'C-c'
+                 , {ctrl=True , alt=False, shift=False, code= 86, f=(\m -> pasete m (Buffer.nowCursorPos m.buffer) m.copyStore)} -- 'C-v'
                  , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
 
                  -- emacs like binds
@@ -306,19 +306,18 @@ moveNext model =
 -- selection
 ------------------------------------------------------------
 
-selection_update: (Int, Int) -> Selection -> Selection
+selection_update: (Int, Int) -> Buffer.Range -> Buffer.Range
 selection_update (row, col) sel =
     {sel| end = (row, col)}
 
 markSetIfNothing : Model -> Model
 markSetIfNothing model =
     let
-        row = model.buffer.cursor.row
-        col =  model.buffer.cursor.column
+        pos = Buffer.nowCursorPos model.buffer
     in
         case model.selection of
             Nothing ->
-                { model | selection = Just <| Selection (row, col) (row, col) }
+                { model | selection = Just <| Buffer.Range pos pos }
             Just sel ->
                 model
 
@@ -394,6 +393,20 @@ delete model (row, col) =
 undo : Model -> Model
 undo model =
     { model | buffer = Buffer.undo model.buffer }
+    |> selectionClear
+    |> blinkBlock
+
+copy : Model -> Buffer.Range -> Model
+copy model selection =
+    -- todo: クリップボード連携(クリップボードへ保存）
+    { model | copyStore = Buffer.readRange selection model.buffer }
+    |> selectionClear
+    |> blinkBlock
+
+pasete : Model -> (Int, Int) -> String -> Model
+pasete model (row, col) text =
+    -- todo: クリップボード連携（クリップボードから取得、copyStoreのアップデート）、selectされていたらselectoinのdelete
+    { model | buffer = Buffer.insert (row, col) text model.buffer }
     |> selectionClear
     |> blinkBlock
 
@@ -540,14 +553,8 @@ markerLayer model =
 
         Just sel ->
             let
-                isPreviosPos = (\p q ->
-                                    if Tuple.first p == Tuple.first q
-                                    then Tuple.second p < Tuple.second q
-                                    else Tuple.first p < Tuple.first q
-                               )
-
-                bpos = if (isPreviosPos sel.begin sel.end) then sel.begin else sel.end
-                epos = if (isPreviosPos sel.begin sel.end) then sel.end else sel.begin
+                bpos = if (Buffer.isPreviosPos sel.begin sel.end) then sel.begin else sel.end
+                epos = if (Buffer.isPreviosPos sel.begin sel.end) then sel.end else sel.begin
 
                 ms = List.range (Tuple.first bpos) (Tuple.first epos)
                    |> List.map (\ r ->

@@ -29,6 +29,8 @@ type Msg
     | MoveNext
     | Backspace
     | Delete
+    | Copy
+    | Pasete
     | Undo
     | EditorMsg (Editor.Msg)
 
@@ -70,16 +72,26 @@ update msg model =
 
         Backspace ->
             ( { model
-                  | editor = Editor.backspace model.editor (model.editor.buffer.cursor.row, model.editor.buffer.cursor.column)
+                  | editor = Editor.backspace model.editor (Buffer.nowCursorPos model.editor.buffer)
               }
             , Cmd.none)
 
         Delete ->
             ( { model
-                  | editor = Editor.delete model.editor (model.editor.buffer.cursor.row, model.editor.buffer.cursor.column)
+                  | editor = Editor.delete model.editor (Buffer.nowCursorPos model.editor.buffer)
               }
             , Cmd.none)
 
+        Copy ->
+            ( { model
+                  | editor = model.editor.selection |> Maybe.andThen (\sel -> Just <| Editor.copy model.editor sel) |> Maybe.withDefault model.editor
+              }
+            , Cmd.none)
+        Pasete ->
+            ( { model
+                  | editor = Editor.pasete model.editor (Buffer.nowCursorPos model.editor.buffer) model.editor.copyStore
+              }
+            , Cmd.none)
         Undo ->
             ( { model
                   | editor = Editor.undo model.editor
@@ -136,8 +148,13 @@ view model =
                  , button [ onClick Backspace ] [ text "BS" ]
                  , button [ onClick Delete ] [ text "DEL" ]
                  , text "|"
-                 , button [ onClick Undo ] [ text "Undo" ]
+                 , button [ onClick Copy ]   [ text "Copy" ]
+                 , button [ onClick Pasete ] [ text "Pasete" ]
+                 , button [ onClick Undo ]   [ text "Undo" ]
+                 , text "|"
+                 , input [ type_ "file", id "file_open" ][]
                  ]
+        , div [] [ text model.editor.copyStore ]
         , div [ style [ ("display", "flex")
                       , ("flex-direction", "row")
                       , ("width" , "100%"), ("height", "100%")
