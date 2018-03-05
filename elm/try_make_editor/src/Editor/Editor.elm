@@ -6,7 +6,7 @@ import Html.Events exposing (..)
 import Json.Decode as Json
 import Mouse
 import Time exposing (Time, second)
-
+import Task exposing (Task)
 
 import Editor.Buffer as Buffer
 import Native.Mice
@@ -53,6 +53,8 @@ init id text =
           (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
 
+
+
 -- frame > cursor blink
 
 type BlinkState
@@ -79,7 +81,8 @@ blinkBlock model =
 ------------------------------------------------------------
 
 type Msg
-    = Input String
+    = PreventDefaultKeyShortcut Bool
+    | Input String
     | KeyDown KeyboardEvent
     | CompositionStart String
     | CompositionUpdate String
@@ -93,6 +96,9 @@ type Msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
+        PreventDefaultKeyShortcut b ->
+            ( {model | isPreventedDefaultKeyShortcut = b}, Cmd.none)
+
         Input s ->
             case model.enableComposer of
                 True ->
@@ -121,17 +127,21 @@ update msg model =
         FocusIn _ ->
             ( {model
                   | focus = True
-                  , isPreventedDefaultKeyShortcut = if model.isPreventedDefaultKeyShortcut
-                                                    then model.isPreventedDefaultKeyShortcut
-                                                    else setPreventDefaultKeyShortcut (model.id ++ "-input") -- todo: タスクなりにしないとなー。initのタイミングだとdomが出来ていない問題もある。とりあえずの実装。
               }
-            , Cmd.none)
+
+            , if model.isPreventedDefaultKeyShortcut then
+                  Cmd.none
+              else
+                  Task.perform PreventDefaultKeyShortcut (setPreventDefaultKeyShortcut (model.id ++ "-input"))
+            )
+
         FocusOut _ ->
             ( {model|focus = False}
             , Cmd.none)
+
         SetFocus ->
-            ( {model|focus = doFocus (model.id ++ "-input")}
-            , Cmd.none )
+            ( model
+            , Task.perform FocusIn (doFocus <| model.id ++ "-input") )
 
         DragStart row xy ->
             let
@@ -775,12 +785,19 @@ onMouseDown : (Mouse.Position -> msg) -> Attribute msg
 onMouseDown tagger =
     on "mousedown" (Json.map tagger Mouse.position)
 
+
+------------------------------------------------------------
+------------------------------------------------------------
+
+
 ------------------------------------------------------------
 -- Native (Mice)
 ------------------------------------------------------------
 
-doFocus : String -> Bool
-doFocus id = Native.Mice.doFocus id
+doFocus : String -> Task Never Bool
+doFocus id =
+    Task.succeed (Native.Mice.doFocus id)
+
 
 calcTextWidth : String -> String -> Int
 calcTextWidth id txt = Native.Mice.calcTextWidth id txt
@@ -800,5 +817,10 @@ type alias Rect =
 getBoundingClientRect: String -> Rect
 getBoundingClientRect id = Native.Mice.getBoundingClientRect id
 
-setPreventDefaultKeyShortcut : String -> Bool
-setPreventDefaultKeyShortcut id = Native.Mice.setPreventDefaultKeyShortcut id
+setPreventDefaultKeyShortcut : String -> Task Never Bool
+setPreventDefaultKeyShortcut id =
+    Task.succeed (Native.Mice.setPreventDefaultKeyShortcut id)
+
+
+
+                                  
