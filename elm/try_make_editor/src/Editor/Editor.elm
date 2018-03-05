@@ -36,6 +36,7 @@ type alias Model =
     , event_log : List String
     , xy : Mouse.Position
     , isPreventedDefaultKeyShortcut : Bool
+    , copyReq : Maybe String
     }
 
 init : String -> String -> Model
@@ -52,7 +53,7 @@ init id text =
           []                     -- event_log
           (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
-
+          Nothing                --copyReq
 
 
 -- frame > cursor blink
@@ -75,6 +76,10 @@ blinkBlock model =
     {model | blink = BlinkBlocked}
 
 
+requestCopyToClipboard : String -> Model -> Model
+requestCopyToClipboard s model =
+    {model | copyReq = Just s}
+
 
 ------------------------------------------------------------
 -- update
@@ -82,6 +87,7 @@ blinkBlock model =
 
 type Msg
     = PreventDefaultKeyShortcut Bool
+    | Copied Bool
     | Input String
     | KeyDown KeyboardEvent
     | CompositionStart String
@@ -99,6 +105,10 @@ update msg model =
         PreventDefaultKeyShortcut b ->
             ( {model | isPreventedDefaultKeyShortcut = b}, Cmd.none)
 
+        Copied _ ->
+            ( {model | copyReq = Nothing}
+            , Task.perform FocusIn (doFocus <| model.id ++ "-input"))
+
         Input s ->
             case model.enableComposer of
                 True ->
@@ -113,7 +123,16 @@ update msg model =
                     , Cmd.none)
 
         KeyDown code ->
-            keyDown code model
+            let 
+                (m, c) = keyDown code model
+            in
+                ( m
+                , case m.copyReq of
+                      Nothing -> c
+                      Just s -> Cmd.batch [ Task.perform Copied (copyToClipboard (model.id ++ "-clipboard") s)
+                                          , c]
+                )
+ 
 
         CompositionStart data ->
             compositionStart data model
@@ -422,7 +441,11 @@ undo model =
 copy : Model -> Buffer.Range -> Model
 copy model selection =
     -- todo: クリップボード連携(クリップボードへ保存）
-    { model | copyStore = Buffer.readRange selection model.buffer }
+    let
+        s = Buffer.readRange selection model.buffer
+    in
+    { model | copyStore = s }
+    |> requestCopyToClipboard s
     |> selectionClear
     |> blinkBlock
 
@@ -450,7 +473,20 @@ pasete model (row, col) text =
 view : Model -> Html Msg
 view model =
     div [class "editor"]
-        [ presentation model ]
+        [ presentation model 
+        , controller model
+        ]
+
+controller : Model -> Html Msg
+controller model =
+    div [ style [ ("width", "1px"), ("height", "1px")
+                , ("overflow", "hidden")
+                , ("position", "absolute")
+                ]
+        ]
+        [ textarea [ id <| model.id ++ "-clipboard" ] []
+        ]
+
 
 presentation : Model -> Html Msg
 presentation model =
@@ -797,6 +833,15 @@ onMouseDown tagger =
 doFocus : String -> Task Never Bool
 doFocus id =
     Task.succeed (Native.Mice.doFocus id)
+
+copyToClipboard : String -> String -> Task Never Bool
+copyToClipboard id text =
+    Task.succeed (Native.Mice.copyToClipboard id text)
+
+--copyToClipboard : String -> Bool
+--copyToClipBoard id =
+--    Native.Mice.copyToClipboard id
+
 
 
 calcTextWidth : String -> String -> Int

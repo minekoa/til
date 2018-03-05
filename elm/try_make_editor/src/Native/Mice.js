@@ -28,7 +28,7 @@ var _minekoa$project$Native_Mice = function() {
       if (element == null) {
           return {"left":0, "top":0, "right":0, "bottom":0, "x":0, "y":0, "width":0, "height":0};
       }
-      var rect = element.getBoundingClientRect();
+      const rect = element.getBoundingClientRect();
       return rect;
   }
 
@@ -46,12 +46,21 @@ var _minekoa$project$Native_Mice = function() {
       return true;
   }                              
         
+  function copyToClipboard (_id, txt) {
+	  const element = document.getElementById(_id); /*textarea であることを期待している */
+      const range = document.createRange();
+
+      element.value = txt;
+      element.select();
+      return document.execCommand('copy');
+  };
 
   return {
       doFocus: doFocus,
       calcTextWidth: F2(calcTextWidth),
       getBoundingClientRect: getBoundingClientRect,
-      setPreventDefaultKeyShortcut: setPreventDefaultKeyShortcut
+      setPreventDefaultKeyShortcut: setPreventDefaultKeyShortcut,
+      copyToClipboard: F2(copyToClipboard)
   }
 }();
 
