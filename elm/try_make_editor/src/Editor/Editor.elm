@@ -34,7 +34,9 @@ type alias Model =
 
     -- for debug
     , event_log : List String
-    , xy : Mouse.Position
+--    , xy : Mouse.Position
+
+    -- work
     , isPreventedDefaultKeyShortcut : Bool
     , copyReq : Maybe String
     }
@@ -51,7 +53,7 @@ init id text =
           BlinkBlocked           -- blink
 
           []                     -- event_log
-          (Mouse.Position 0 0)
+--          (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
           Nothing                --copyReq
 
@@ -136,7 +138,7 @@ update msg model =
                 ( m
                 , case m.copyReq of
                       Nothing -> c
-                      Just s -> Cmd.batch [ Task.perform Copied (copyToClipboard (model.id ++ "-clipboard") s)
+                      Just s -> Cmd.batch [ Task.perform Copied (copyToClipboard (model.id ++ "-clipboard-copy") s)
                                           , c]
                 )
  
@@ -159,7 +161,7 @@ update msg model =
             , if model.isPreventedDefaultKeyShortcut then
                   Cmd.none
               else
-                  Task.perform PreventDefaultKeyShortcut (elaborateInputAreaEventHandlers (model.id ++ "-input") (model.id ++ "-paste"))
+                  Task.perform PreventDefaultKeyShortcut (elaborateInputAreaEventHandlers (model.id ++ "-input") (model.id ++ "-clipboard-paste"))
             )
 
         FocusOut _ ->
@@ -168,7 +170,7 @@ update msg model =
 
         SetFocus ->
             ( model
-            , Task.perform FocusIn (doFocus <| model.id ++ "-input") )
+            , Task.perform FocusIn (doFocus <| model.id ++ "-input") ) --とりあえずFocusInにしてるが、textarea.onFocus と2重発生するよ
 
         DragStart row xy ->
             let
@@ -187,7 +189,8 @@ update msg model =
 
 
             in
-                ( { model | buffer = b2, xy = xy}
+--                ( { model | buffer = b2, xy = xy}
+                ( { model | buffer = b2 }
                   |> eventLog ("Ds(" ++ (toString xy.x) ++ ", " ++ (toString xy.y) ++ "{lft" ++ (toString rect.left) ++")")
                   |> eventLog ("CALC(" ++ ln ++ "):" ++ (toString col))
                   |> blinkBlock
@@ -214,7 +217,6 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=False, alt=False, shift=True , code= 39, f=selectForward }  -- 'S-→'
                  , {ctrl=False, alt=False, shift=True , code= 40, f=selectNext }     -- 'S-↓' 
 
---                 , {ctrl=False, alt=False, shift=Nothihg, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) }
                  , {ctrl=False, alt=False, shift=False, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) } -- BS
                  , {ctrl=False, alt=False, shift=False, code= 46, f=(\m -> case m.selection of
                                                                                Nothing -> delete m (Buffer.nowCursorPos m.buffer)
@@ -223,7 +225,8 @@ keymapper (ctrl, alt, shift, keycode) =
 
                  , {ctrl=True , alt=False, shift=False, code= 67, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'C-c'
                  , {ctrl=True , alt=False, shift=False, code= 88, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m) } -- 'C-x'
---                 , {ctrl=True , alt=False, shift=False, code= 86, f=(\m -> pasete m (Buffer.nowCursorPos m.buffer) m.copyStore)} -- 'C-v'
+                 -- C-v は、クリップボードと連携したいので、ブラウザのpasteイベントを発火させる、ので、ここでは何もしない
+
                  , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
 
                  -- emacs like binds
@@ -237,6 +240,7 @@ keymapper (ctrl, alt, shift, keycode) =
                                                                                Just s  -> deleteRange m s
                                                                     )  }    -- 'C-d'
                  , {ctrl=True , alt=False, shift=False, code= 77, f=(\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") }-- 'C-m'
+                 , {ctrl=True , alt=False, shift=False, code= 89, f=(\m -> paste m (Buffer.nowCursorPos m.buffer) m.copyStore)} -- 'C-y'
                  ]
 
         search = (\ (ctrl, alt, shift, keycode) l ->
@@ -418,57 +422,61 @@ selectNext model =
 insert: Model -> (Int, Int)  -> String -> Model
 insert model (row, col) text =
     { model | buffer = Buffer.insert (row, col) text model.buffer }
-    |> selectionClear
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 
 backspace: Model -> (Int, Int) -> Model
 backspace model (row, col) =
     { model | buffer = Buffer.backspace (row, col) model.buffer}
-    |> selectionClear
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 delete: Model -> (Int, Int) -> Model
 delete model (row, col) =
     { model | buffer = Buffer.delete (row, col) model.buffer}
-    |> selectionClear
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 deleteRange: Model -> Buffer.Range -> Model
 deleteRange model selection =
     { model | buffer = Buffer.deleteRange selection model.buffer}
-    |> selectionClear
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 undo : Model -> Model
 undo model =
     { model | buffer = Buffer.undo model.buffer }
-    |> selectionClear
-    |> blinkBlock
+        |> selectionClear
+        |> blinkBlock
 
 copy : Model -> Buffer.Range -> Model
 copy model selection =
-    -- todo: クリップボード連携(クリップボードへ保存）
     let
         s = Buffer.readRange selection model.buffer
     in
-    { model | copyStore = s }
-    |> requestCopyToClipboard s
-    |> selectionClear
-    |> blinkBlock
+        { model | copyStore = s }
+            |> requestCopyToClipboard s
+            |> selectionClear
+            |> blinkBlock
 
 cut : Model -> Buffer.Range -> Model
 cut model selection =
-    -- todo: クリップボード連携(クリップボードへ保存）
-    { model | copyStore = Buffer.readRange selection model.buffer
-            , buffer = Buffer.deleteRange selection model.buffer
-    }
-    |> selectionClear
-    |> blinkBlock
+    let
+        s = Buffer.readRange selection model.buffer
+    in
+        { model | copyStore = s
+                , buffer = Buffer.deleteRange selection model.buffer
+        }
+        |> requestCopyToClipboard s
+        |> selectionClear
+        |> blinkBlock
 
 paste : Model -> (Int, Int) -> String -> Model
 paste model (row, col) text =
-    { model | buffer = Buffer.insert (row, col) text model.buffer }
+    { model | buffer = Buffer.insert (row, col) text model.buffer 
+            , copyStore = text  -- clipboard経由のペーストもあるので、copyStoreを更新しておく
+    }
     |> selectionClear
     |> blinkBlock
 
@@ -491,8 +499,8 @@ controller model =
                 , ("position", "absolute")
                 ]
         ]
-        [ textarea [ id <| model.id ++ "-clipboard" ] []
-        , textarea [ id <| model.id ++ "-paste"
+        [ textarea [ id <| model.id ++ "-clipboard-copy" ] []
+        , textarea [ id <| model.id ++ "-clipboard-paste"
                    , onInput Pasted] []
         ]
 
@@ -532,7 +540,7 @@ codeArea : Model -> Html Msg
 codeArea model =
     div [ class "code-area" ]
         [ ruler (model.id ++ "-ruler")
-        , cursorLayer2 model
+        , cursorLayer model
         , markerLayer model
         , codeLayer model
         ]
@@ -544,7 +552,7 @@ codeLayer model =
         cursor = model.buffer.cursor
     in
         div [ id (model.id ++ "-codeLayer")
-            , class "lines"] <|
+            , class "code-layer"] <|
             List.indexedMap
                 (λ n ln ->
                       if n == cursor.row then
@@ -577,8 +585,8 @@ codeLayer model =
                               , onMouseDown (DragStart n)
                               ] [text ln] ) contents
 
-cursorLayer2 : Model -> Html Msg
-cursorLayer2 model =
+cursorLayer : Model -> Html Msg
+cursorLayer model =
     {- 作戦2, [パディング用要素、本物の文字を入れ、hiddenにする][cursol]
        思いついたのでやってみたらうまく行った
        けど、みんなこれをやってないの、なにか落とし穴あるからなのかな？
@@ -832,12 +840,10 @@ onMouseDown tagger =
 
 
 ------------------------------------------------------------
-------------------------------------------------------------
-
-
-------------------------------------------------------------
 -- Native (Mice)
 ------------------------------------------------------------
+
+-- Task
 
 doFocus : String -> Task Never Bool
 doFocus id =
@@ -847,11 +853,13 @@ copyToClipboard : String -> String -> Task Never Bool
 copyToClipboard id text =
     Task.succeed (Native.Mice.copyToClipboard id text)
 
---copyToClipboard : String -> Bool
---copyToClipBoard id =
---    Native.Mice.copyToClipboard id
+elaborateInputAreaEventHandlers: String -> String -> Task Never Bool
+elaborateInputAreaEventHandlers input_area_id paste_area_id =
+    Task.succeed (Native.Mice.elaborateInputAreaEventHandlers input_area_id paste_area_id)
 
 
+
+-- Function
 
 calcTextWidth : String -> String -> Int
 calcTextWidth id txt = Native.Mice.calcTextWidth id txt
@@ -867,16 +875,6 @@ type alias Rect =
     , height : Int
     }
 
-
 getBoundingClientRect: String -> Rect
 getBoundingClientRect id = Native.Mice.getBoundingClientRect id
 
-setPreventDefaultKeyShortcut : String -> Task Never Bool
-setPreventDefaultKeyShortcut id =
-    Task.succeed (Native.Mice.setPreventDefaultKeyShortcut id)
-
-
-elaborateInputAreaEventHandlers: String -> String -> Task Never Bool
-elaborateInputAreaEventHandlers input_area_id paste_area_id =
-    Task.succeed (Native.Mice.elaborateInputAreaEventHandlers input_area_id paste_area_id)
-                                  
