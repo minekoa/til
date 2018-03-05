@@ -151,6 +151,10 @@ Nativeモジュールで以下のようなJavaScriptを作り、そちらを登�
 | Alt-Home            | ○         | ホームページを現在のタブで開く                              |
 
 
+### Emacs like web editor
+
+* [Ymacs — AJAX source code editor](http://www.ymacs.org/)
+    * demo: [Ymacs](http://www.ymacs.org/demo/)
 
 ## 参考
 

@@ -74,4 +74,22 @@ keymapper (ctrl, alt, shift, keycode) =
 
 結果、変わりませんでした...orz
 
-## (つづく)
+## なにが起きているの？
+
+* [Bad worst-case performance for pattern match compiler | Issue #1362 | elm-lang/elm-compiler](https://github.com/elm-lang/elm-compiler/issues/1362)
+* [When Do Match-Compilation Heurestics Matter?](https://pdfs.semanticscholar.org/b8d1/e3b73db3e6549334cc7c20da060516c3188a.pdf) (PDF)
+
+> 最近の静的型付けされた関数型言語は、パターンマッチングによって関数を定義します。 パターンマッチングは、
+> あるパターンに対してあるパターンに対する値の順次チェックの観点から定義されますが、
+> 実際の実装ではパターンを多数のパターンに対して同時にテストできるオートマトンに変換します。 
+> 決定木は一般的なオートマトンです。
+>
+> 意思決定ツリーを使用するコストは、そのサイズと形状に関連しています。 最小コストの決定木を生成するために保証される唯一の方法は、
+> 指数関数的なマッチコンパイル時間を必要とするため、多くのヒューリスティックスが文献で提案されているか、または実際のコンパイラで使用されている。
+> 本稿では、New JerseyコンパイラのStandard MLを使用して、そのような発見的手法の実験的評価を提示する。 
+
+
+パターンマッチオートマトンの生成にすごく時間がかかっているので、これは タプルだからという問題ではない。
+
+
+
