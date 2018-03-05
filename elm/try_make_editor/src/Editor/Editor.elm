@@ -88,6 +88,7 @@ requestCopyToClipboard s model =
 type Msg
     = PreventDefaultKeyShortcut Bool
     | Copied Bool
+    | Pasted String
     | Input String
     | KeyDown KeyboardEvent
     | CompositionStart String
@@ -108,6 +109,12 @@ update msg model =
         Copied _ ->
             ( {model | copyReq = Nothing}
             , Task.perform FocusIn (doFocus <| model.id ++ "-input"))
+
+        Pasted s ->
+            ( paste model (Buffer.nowCursorPos model.buffer) s
+              |> eventLog ("PASTE:`" ++ s ++ "`")
+            , Cmd.none
+            )
 
         Input s ->
             case model.enableComposer of
@@ -146,12 +153,13 @@ update msg model =
         FocusIn _ ->
             ( {model
                   | focus = True
+                  , isPreventedDefaultKeyShortcut = True
               }
 
             , if model.isPreventedDefaultKeyShortcut then
                   Cmd.none
               else
-                  Task.perform PreventDefaultKeyShortcut (setPreventDefaultKeyShortcut (model.id ++ "-input"))
+                  Task.perform PreventDefaultKeyShortcut (elaborateInputAreaEventHandlers (model.id ++ "-input") (model.id ++ "-paste"))
             )
 
         FocusOut _ ->
@@ -215,7 +223,7 @@ keymapper (ctrl, alt, shift, keycode) =
 
                  , {ctrl=True , alt=False, shift=False, code= 67, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'C-c'
                  , {ctrl=True , alt=False, shift=False, code= 88, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m) } -- 'C-x'
-                 , {ctrl=True , alt=False, shift=False, code= 86, f=(\m -> pasete m (Buffer.nowCursorPos m.buffer) m.copyStore)} -- 'C-v'
+--                 , {ctrl=True , alt=False, shift=False, code= 86, f=(\m -> pasete m (Buffer.nowCursorPos m.buffer) m.copyStore)} -- 'C-v'
                  , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
 
                  -- emacs like binds
@@ -458,9 +466,8 @@ cut model selection =
     |> selectionClear
     |> blinkBlock
 
-pasete : Model -> (Int, Int) -> String -> Model
-pasete model (row, col) text =
-    -- todo: クリップボード連携（クリップボードから取得、copyStoreのアップデート）、selectされていたらselectoinのdelete
+paste : Model -> (Int, Int) -> String -> Model
+paste model (row, col) text =
     { model | buffer = Buffer.insert (row, col) text model.buffer }
     |> selectionClear
     |> blinkBlock
@@ -485,6 +492,8 @@ controller model =
                 ]
         ]
         [ textarea [ id <| model.id ++ "-clipboard" ] []
+        , textarea [ id <| model.id ++ "-paste"
+                   , onInput Pasted] []
         ]
 
 
@@ -867,5 +876,7 @@ setPreventDefaultKeyShortcut id =
     Task.succeed (Native.Mice.setPreventDefaultKeyShortcut id)
 
 
-
+elaborateInputAreaEventHandlers: String -> String -> Task Never Bool
+elaborateInputAreaEventHandlers input_area_id paste_area_id =
+    Task.succeed (Native.Mice.elaborateInputAreaEventHandlers input_area_id paste_area_id)
                                   

@@ -99,7 +99,7 @@ update msg model =
 
         Pasete ->
             ( { model
-                  | editor = Editor.pasete model.editor (Buffer.nowCursorPos model.editor.buffer) model.editor.copyStore
+                  | editor = Editor.paste model.editor (Buffer.nowCursorPos model.editor.buffer) model.editor.copyStore
               }
             , Cmd.none)
         Undo ->
