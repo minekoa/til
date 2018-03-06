@@ -499,9 +499,13 @@ controller model =
                 , ("position", "absolute")
                 ]
         ]
-        [ textarea [ id <| model.id ++ "-clipboard-copy" ] []
+        [ textarea [ id <| model.id ++ "-clipboard-copy"
+                   , tabindex -1
+                   ] []
         , textarea [ id <| model.id ++ "-clipboard-paste"
-                   , onInput Pasted] []
+                   , onInput Pasted
+                   , tabindex -1
+                   ] []
         ]
 
 

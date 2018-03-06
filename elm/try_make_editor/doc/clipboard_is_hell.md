@@ -81,18 +81,21 @@ element.dispatchEvent(event);
 ## 参考
 
 * document.execCommand('copy')
-    * [Interact with the clipboard](https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Interact_with_the_clipboard)
-    * [Selection.addRange()](https://developer.mozilla.org/en-US/docs/Web/API/Selection/addRange)
+    * [Interact with the clipboard | MDN web docs](https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Interact_with_the_clipboard)
+    * [Selection.addRange() | MDN web docs](https://developer.mozilla.org/en-US/docs/Web/API/Selection/addRange)
     * [ライブラリを使わずJSでコピペをカスタマイズ](https://qiita.com/kwst/items/8d9cd40e181761085325)
     * [document.execCommand('copy')してみる | Qiita](https://qiita.com/keiskimu/items/a8128e14ef8b60c681b2)
+    * [【javascript】クリップボードにコピーさせる方法 |ysk log](http://ysklog.net/javascript/2157.html)
 
 * Clipboard API
     * [Clipboard API について](https://hakuhin.jp/js/clipboard.html#CLIPBOARD_EVENT)
-
+    * [ClipboardEvent | MDN web docs](https://developer.mozilla.org/ja/docs/Web/API/ClipboardEvent)
+    * [copy | MDN web docs](https://developer.mozilla.org/ja/docs/Web/Reference/Events/copy)
+    * [ライブラリを使わずJSでコピペをカスタマイズ | Qiita](https://qiita.com/kwst/items/8d9cd40e181761085325)
 
 * DataTransfer
     * [DataTransfer クラスについて](https://hakuhin.jp/js/data_transfer.html)
-    * [DataTransfer.getData()](https://developer.mozilla.org/ja/docs/Web/API/DataTransfer/getData)
+    * [DataTransfer.getData() | MDN web docs](https://developer.mozilla.org/ja/docs/Web/API/DataTransfer/getData)
 
 
 * dispatchEvent
