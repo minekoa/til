@@ -1,5 +1,6 @@
 ELM_MAKE=elm-make
 ELM_PACKAGE=elm-package
+ELM_TEST=elm-test
 
 SRC_DIR=src
 OUT_DIR=dist
@@ -21,3 +22,6 @@ $(OUT_DIR)/$(TARGET): $(SRC_DIR)/Main.elm
 
 clean:
 	rm -rf $(OUT_DIR)
+
+test:
+	$(ELM_TEST)
