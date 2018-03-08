@@ -669,7 +669,7 @@ controller model =
 
 presentation : Model -> Html Msg
 presentation model =
-    div [ style [ ("display", "flex"), ("flex-direction", "row"), ("flex-wrap", "no-wrap")
+    div [ style [ ("display", "flex"), ("flex-direction", "row"), ("flex-wrap", "nowrap")
                 , ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                 , ("position", "relative")
                 ]
@@ -786,7 +786,7 @@ cursorLayer model =
                                 , onCompositionUpdate CompositionUpdate
                                 , onCompositionEnd CompositionEnd
                                 , value model.input_buffer
-                                , style [ ("width", "1px"), ("border", "none"), ("padding", "none"), ("margin","none"), ("outline", "none")
+                                , style [ ("width", "1px"), ("border", "none"), ("padding", "0"), ("margin","0"), ("outline", "none")
                                         , ("overflow", "hidden"), ("opacity", "0")
                                         , ("resize", "none")
                                         , ("position", "absolute") -- textarea のサイズは（入力を取れる状態を維持したままでは）0にできないので、カーソル位置がずれぬよう、浮かせてあげる
@@ -840,7 +840,7 @@ markerLayer model =
                                             , style [ ("background-color", "blue")
                                                     , ("color","white")
                                                     , ("white-space", "pre")
-                                                    , ("border","none"), ("padding", "none"), ("margin", "none")
+                                                    , ("border","none"), ("padding", "0"), ("margin", "0")
                                                     ]
                                             ]
                                             [ Buffer.line m.row model.buffer.contents |> Maybe.withDefault ""
