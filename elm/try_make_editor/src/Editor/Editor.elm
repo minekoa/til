@@ -1,4 +1,26 @@
-module Editor.Editor exposing (..)
+module Editor.Editor exposing ( Model
+                              , init
+                              , update
+                              , Msg(..)
+                              , moveForward
+                              , moveBackward
+                              , movePrevios
+                              , moveNext
+                              , selectForward
+                              , selectBackward
+                              , selectPrevios
+                              , selectNext
+                              , insert
+                              , backspace
+                              , delete
+                              , deleteRange
+                              , undo
+                              , copy
+                              , cut
+                              , paste
+                              , subscriptions
+                              , view
+                              )
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -418,25 +440,21 @@ requestVScroll model =
 
 
 printVScrollInfo : Model -> String
-printVScrollInfo model =
-            let
-                frameOffset  = getOffsetTop <| model.id ++ "-editor-frame"
-                sceneOffset  = getOffsetTop <| model.id ++ "-editor-scene"
-                cursorOffset = getOffsetTop <| model.id ++ "-cursor"
-                scrollTop    = getScrollTop <| model.id ++ "-editor-frame"
-            in
-                "offset<" ++ (toString (cursorOffset - frameOffset))
-                    ++ ">(cur:" ++ (toString cursorOffset)
-                    ++ ", sce:" ++ (toString sceneOffset)
-                    ++ ", frm:" ++ (toString frameOffset) ++") "
-                    ++ "scroll<" ++ (toString scrollTop) ++ "> "
-
-getOffsetTop : String -> Int
-getOffsetTop id =         
+printVScrollInfo model = 
     let
-        rect = getBoundingClientRect id
+        getOffsetTop = \id -> getBoundingClientRect id |> .top
+
+        frameOffset  = getOffsetTop <| model.id ++ "-editor-frame"
+        sceneOffset  = getOffsetTop <| model.id ++ "-editor-scene"
+        cursorOffset = getOffsetTop <| model.id ++ "-cursor"
+        scrollTop    = getScrollTop <| model.id ++ "-editor-frame"
     in
-        rect.top
+        "offset<" ++ (toString (cursorOffset - frameOffset))
+            ++ ">(cur:" ++ (toString cursorOffset)
+            ++ ", sce:" ++ (toString sceneOffset)
+            ++ ", frm:" ++ (toString frameOffset) ++") "
+            ++ "scroll<" ++ (toString scrollTop) ++ "> "
+
 
 ------------------------------------------------------------
 -- selection
@@ -477,6 +495,8 @@ selectBackward model =
         |> (\ m -> { m | buffer = Buffer.moveBackward m.buffer })
         |> selectionUpdate
         |> blinkBlock
+        |> requestVScroll
+
 
 selectForward: Model -> Model
 selectForward model =
@@ -485,6 +505,7 @@ selectForward model =
         |> (\m -> { m | buffer = Buffer.moveForward m.buffer })
         |> selectionUpdate
         |> blinkBlock
+        |> requestVScroll
 
 selectPrevios: Model -> Model
 selectPrevios model =
@@ -493,6 +514,7 @@ selectPrevios model =
         |> (\m -> { m | buffer = Buffer.movePrevios m.buffer })
         |> selectionUpdate
         |> blinkBlock
+        |> requestVScroll
 
 selectNext: Model -> Model
 selectNext model =
@@ -501,6 +523,7 @@ selectNext model =
         |> (\m -> { m | buffer = Buffer.moveNext m.buffer })
         |> selectionUpdate
         |> blinkBlock
+        |> requestVScroll
 
 
 ------------------------------------------------------------
@@ -640,7 +663,11 @@ lineNumArea model =
 
 codeArea : Model -> Html Msg
 codeArea model =
-    div [ class "code-area" ]
+    div [ class "code-area"
+        , style [ ("margin", "0"), ("padding", "0"), ("border", "none")
+                , ("width", "100%")
+                ]
+        ]
         [ ruler (model.id ++ "-ruler")
         , cursorLayer model
         , markerLayer model
@@ -654,12 +681,17 @@ codeLayer model =
         cursor = model.buffer.cursor
     in
         div [ id (model.id ++ "-codeLayer")
-            , class "code-layer"] <|
+            , class "code-layer"
+            , style [ ("margin", "0"), ("padding", "0"), ("border", "none")
+                    , ("width", "100%")
+                    ]
+            ] <|
             List.indexedMap
                 (λ n ln ->
                       if n == cursor.row then
                           div [ class "line"
                               , style [ ("height", "1em")
+                                      , ("width", "100%")
                                       , ("text-wrap", "none")
                                       , ("white-space", "pre")
 --                                      , ("display" , "inline-flex")
