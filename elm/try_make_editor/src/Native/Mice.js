@@ -79,12 +79,45 @@ var _minekoa$project$Native_Mice = function() {
       return document.execCommand('copy');
   };
 
+    /* Scrolling */
+
+    function getScrollTop (_id) {
+	    const element = document.getElementById(_id); 
+        if (element == null) {
+            return -1;
+        }
+        return element.scrollTop;
+    }        
+
+    function setScrollTop (_id, pixels) {
+	    const element = document.getElementById(_id); 
+        if (element == null) {
+            return false;
+        }
+        element.scrollTop = pixels;
+        return true
+    }        
+
+    function getScrollHeight (_id) {
+	    const element = document.getElementById(_id); 
+        if (element == null) {
+            return 0;
+        }
+        return element.scrollHeight;
+    }
+
+
+
+
   return {
       doFocus: doFocus,
       calcTextWidth: F2(calcTextWidth),
       getBoundingClientRect: getBoundingClientRect,
       elaborateInputAreaEventHandlers : F2(elaborateInputAreaEventHandlers),
-      copyToClipboard: F2(copyToClipboard)
+      copyToClipboard: F2(copyToClipboard),
+      getScrollTop: getScrollTop,
+      setScrollTop: F2(setScrollTop),
+      getScrollHeight: getScrollHeight
   }
 }();
 

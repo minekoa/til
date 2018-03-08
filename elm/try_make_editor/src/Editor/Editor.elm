@@ -342,13 +342,58 @@ movePrevios model =
     { model | buffer = Buffer.movePrevios model.buffer }
         |> selectionClear
         |> blinkBlock
+        |> \m -> eventLog (printVScrollInfo m) m
+        |> \m -> if doVScroll m then m else m
 
 moveNext : Model -> Model
 moveNext model =
     { model | buffer = Buffer.moveNext model.buffer }
         |> selectionClear
         |> blinkBlock
+        |> \m -> eventLog (printVScrollInfo m) m
+        |> \m -> if doVScroll m then m else m
 
+------------------------------------------------------------
+-- scroll
+------------------------------------------------------------
+
+doVScroll : Model -> Bool
+doVScroll model =
+    let
+        frameRect  = getBoundingClientRect <| model.id ++ "-editor-frame"
+        cursorRect = getBoundingClientRect <| model.id ++ "-cursor"
+        scrtop = getScrollTop (model.id ++ "-editor-frame")
+
+        margin = cursorRect.height * 3
+    in
+        if  cursorRect.top - margin < frameRect.top then
+            setScrollTop (model.id ++ "-editor-frame") ( scrtop + (cursorRect.top - frameRect.top ) - margin)
+        else
+            if  cursorRect.bottom + margin > frameRect.bottom then
+                setScrollTop (model.id ++ "-editor-frame") ( scrtop + (cursorRect.bottom - frameRect.bottom ) + margin)
+            else 
+                False
+
+printVScrollInfo : Model -> String
+printVScrollInfo model =
+            let
+                frameOffset  = getOffsetTop <| model.id ++ "-editor-frame"
+                sceneOffset  = getOffsetTop <| model.id ++ "-editor-scene"
+                cursorOffset = getOffsetTop <| model.id ++ "-cursor"
+                scrollTop    = getScrollTop <| model.id ++ "-editor-frame"
+            in
+                "offset<" ++ (toString (cursorOffset - frameOffset))
+                    ++ ">(cur:" ++ (toString cursorOffset)
+                    ++ ", sce:" ++ (toString sceneOffset)
+                    ++ ", frm:" ++ (toString frameOffset) ++") "
+                    ++ "scroll<" ++ (toString scrollTop) ++ "> "
+
+getOffsetTop : String -> Int
+getOffsetTop id =         
+    let
+        rect = getBoundingClientRect id
+    in
+        rect.top
 
 ------------------------------------------------------------
 -- selection
@@ -487,9 +532,17 @@ paste model (row, col) text =
 
 view : Model -> Html Msg
 view model =
-    div [class "editor"]
-        [ presentation model 
-        , controller model
+    div [ id (model.id ++ "-editor-frame")
+        , style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
+                , ("overflow","auto")
+                ]
+        ]
+        [ div [ id (model.id ++ "-editor-scene")
+              , class "editor-scene"
+              ]
+              [ presentation model 
+              , controller model
+              ]
         ]
 
 controller : Model -> Html Msg
@@ -748,6 +801,7 @@ cursorView model =
                 , ("height", "1em")
                 , ("width", "3px")
                 ]
+         , id <| model.id ++ "-cursor"
          ]
     []
 
@@ -881,4 +935,13 @@ type alias Rect =
 
 getBoundingClientRect: String -> Rect
 getBoundingClientRect id = Native.Mice.getBoundingClientRect id
+
+getScrollTop: String -> Int
+getScrollTop id = Native.Mice.getScrollTop id
+
+setScrollTop : String -> Int -> Bool
+setScrollTop id pixels = Native.Mice.setScrollTop id pixels
+
+getScrollHeight : String -> Int
+getScrollHeight id = Native.Mice.getScrollHeight
 
