@@ -54,32 +54,40 @@ Nativeモジュールで以下のようなJavaScriptを作り、そちらを登�
 
 miyamo さんに教えてもらった
 
->この人生は刺繍をするには短すぎる@miyamo_madoka
->
->可能です
->ctrl+sは自分のコード、ctrl+rはブラウザのリロードをそのまま、でいいです？
->https://scrapbox.io/miyamoen/Elm%E3%81%AEHtml.Events.onWithOptions%E3%81%8CJS%E3%81%AB%E3%81%A9%E3%81%86%E3%82%84%E3%81%A3%E3%81%A6%E7%BF%BB%E8%A8%B3%E3%81%95%E3%82%8C%E3%82%8B%E3%81%8B …
->decoderを失敗させればpreventDefault走らないので
->https://github.com/miyamoen/elm-grid-generator/blob/master/src/View.elm#L36 …
->該当コードはここ
->https://miyamoen.github.io/elm-grid-generator/ …
->動くのはこれです。ctrl+sとかは制御奪ってて他のは素通りさせまs
+> この人生は刺繍をするには短すぎる@miyamo_madoka
+> 
+> 
+> 可能です
+> 
+> ctrl+sは自分のコード、ctrl+rはブラウザのリロードをそのまま、でいいです？
+> 
+> https://scrapbox.io/miyamoen/Elm%E3%81%AEHtml.Events.onWithOptions%E3%81%8CJS%E3%81%AB%E3%81%A9%E3%81%86%E3%82%84%E3%81%A3%E3%81%A6%E7%BF%BB%E8%A8%B3%E3%81%95%E3%82%8C%E3%82%8B%E3%81%8B …
+> 
+> decoderを失敗させればpreventDefault走らないので
+> 
+> https://github.com/miyamoen/elm-grid-generator/blob/master/src/View.elm#L36 …
+> 
+> 該当コードはここ
+> 
+> https://miyamoen.github.io/elm-grid-generator/ …
+> 
+> 動くのはこれです。ctrl+sとかは制御奪ってて他のは素通りさせまs
 
 
 * [Keyboard.Event](http://package.elm-lang.org/packages/Gizra/elm-keyboard-event/1.0.0/Keyboard-Event)
 
 これの `considerKeyboardEvent` を使います
 
->```elm
-considerKeyboardEvent
-    ：（KeyboardEvent  -> Maybe msg）
-    -> Decoder msg
-```
->KeyboardEventを指定すると、それを更新関数が処理できるメッセージに変換する関数を提供します。これらのメッセージのためのデコーダを取得します。
+> ```elm
+> considerKeyboardEvent
+>     ：（KeyboardEvent  -> Maybe msg）
+>     -> Decoder msg
+> ```
+> KeyboardEventを指定すると、それを更新関数が処理できるメッセージに変換する関数を提供します。これらのメッセージのためのデコーダを取得します。
 >
->関数がNothingを返すと、デコーダは失敗します。つまり、イベントは単に無視されます。つまり、更新機能にまったく到達しません。
+> 関数がNothingを返すと、デコーダは失敗します。つまり、イベントは単に無視されます。つまり、更新機能にまったく到達しません。
 >
->基本的には、これにより、更新機能ではなく、デコーダ自体の内部でキーボードイベントをフィルタリングすることができます。これが良いアイデアかどうかは、シナリオによって異なります。
+> 基本的には、これにより、更新機能ではなく、デコーダ自体の内部でキーボードイベントをフィルタリングすることができます。これが良いアイデアかどうかは、シナリオによって異なります。
 
 原理はこちら。
 
