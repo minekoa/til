@@ -535,10 +535,12 @@ view model =
     div [ id (model.id ++ "-editor-frame")
         , style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                 , ("overflow","auto")
+                , ( "position", "relative")
                 ]
         ]
         [ div [ id (model.id ++ "-editor-scene")
               , class "editor-scene"
+              , style [ ( "position", "relative") ]
               ]
               [ presentation model 
               , controller model
