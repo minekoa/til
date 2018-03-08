@@ -39,6 +39,7 @@ type alias Model =
     -- work
     , isPreventedDefaultKeyShortcut : Bool
     , copyReq : Maybe String
+    , scrollReq : Maybe Int -- todo: いまは Vだけ。
     }
 
 init : String -> String -> Model
@@ -56,7 +57,7 @@ init id text =
 --          (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
           Nothing                --copyReq
-
+          Nothing                --scrollReq
 
 -- frame > cursor blink
 
@@ -88,9 +89,11 @@ requestCopyToClipboard s model =
 ------------------------------------------------------------
 
 type Msg
-    = PreventDefaultKeyShortcut Bool
+    = IgnoreResult
+    | PreventDefaultKeyShortcut Bool
     | Copied Bool
     | Pasted String
+    | Scrolled Bool
     | Input String
     | KeyDown KeyboardEvent
     | CompositionStart String
@@ -105,12 +108,17 @@ type Msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
+        -- Task Result (Native)
+
+        IgnoreResult ->
+            (model, Cmd.none)
+
         PreventDefaultKeyShortcut b ->
             ( {model | isPreventedDefaultKeyShortcut = b}, Cmd.none)
 
         Copied _ ->
             ( {model | copyReq = Nothing}
-            , Task.perform FocusIn (doFocus <| model.id ++ "-input"))
+            , Task.perform (\_ -> IgnoreResult) (doFocus <| model.id ++ "-input"))
 
         Pasted s ->
             ( paste model (Buffer.nowCursorPos model.buffer) s
@@ -118,28 +126,38 @@ update msg model =
             , Cmd.none
             )
 
+        Scrolled _ ->
+            ( {model | scrollReq = Nothing }
+            , Cmd.none )
+
+
+        -- View Operation Event
+
         Input s ->
-            case model.enableComposer of
-                True ->
-                    ( { model
-                          | input_buffer = s
-                      }
-                    , Cmd.none )
-                False ->
-                    ( insert model (Buffer.nowCursorPos model.buffer) (String.right 1 s)
-                      |> inputBufferClear
-                      |> eventLog ("(" ++ (String.right 1 s) ++ ")")
-                    , Cmd.none)
+            let
+                (m, c) = input s model
+            in
+                ( m
+                , Cmd.batch [ c
+                            , case m.scrollReq of
+                                  Nothing -> Cmd.none
+                                  Just n  -> Task.perform Scrolled (setScrollTop (model.id ++ "-editor-frame") n )
+                            ]
+                )
 
         KeyDown code ->
             let 
                 (m, c) = keyDown code model
             in
                 ( m
-                , case m.copyReq of
-                      Nothing -> c
-                      Just s -> Cmd.batch [ Task.perform Copied (copyToClipboard (model.id ++ "-clipboard-copy") s)
-                                          , c]
+                , Cmd.batch [ c
+                            , case m.copyReq of
+                                  Nothing -> Cmd.none
+                                  Just s  -> Task.perform Copied (copyToClipboard (model.id ++ "-clipboard-copy") s)
+                            , case m.scrollReq of
+                                  Nothing -> Cmd.none
+                                  Just n  -> Task.perform Scrolled (setScrollTop (model.id ++ "-editor-frame") n )
+                            ]
                 )
  
 
@@ -150,7 +168,16 @@ update msg model =
             compositionUpdate data model
 
         CompositionEnd data ->
-            compositionEnd data model
+            let
+                (m, c) =compositionEnd data model
+            in
+                ( m
+                , Cmd.batch [ c
+                            , case m.scrollReq of
+                                  Nothing -> Cmd.none
+                                  Just n  -> Task.perform Scrolled (setScrollTop (model.id ++ "-editor-frame") n)
+                            ]
+                )
 
         FocusIn _ ->
             ( {model
@@ -170,7 +197,7 @@ update msg model =
 
         SetFocus ->
             ( model
-            , Task.perform FocusIn (doFocus <| model.id ++ "-input") ) --とりあえずFocusInにしてるが、textarea.onFocus と2重発生するよ
+            , Task.perform (\_ -> IgnoreResult) (doFocus <| model.id ++ "-input"))
 
         DragStart row xy ->
             let
@@ -202,6 +229,19 @@ update msg model =
 
 
 
+input: String -> Model -> (Model, Cmd Msg)
+input s model =
+    case model.enableComposer of
+        True ->
+            ( { model
+                  | input_buffer = s
+              }
+            , Cmd.none )
+        False ->
+            ( insert model (Buffer.nowCursorPos model.buffer) (String.right 1 s)
+                |> inputBufferClear
+                |> eventLog ("(" ++ (String.right 1 s) ++ ")")
+            , Cmd.none)
 
 
 keymapper : (Bool, Bool, Bool, Int) -> (Model -> Model)
@@ -330,12 +370,14 @@ moveForward model =
     { model | buffer = Buffer.moveForward model.buffer }
         |> selectionClear
         |> blinkBlock
+        |> requestVScroll
 
 moveBackward : Model -> Model
 moveBackward model =
     { model | buffer = Buffer.moveBackward model.buffer }
         |> selectionClear
         |> blinkBlock
+        |> requestVScroll
 
 movePrevios : Model -> Model
 movePrevios model =
@@ -343,7 +385,7 @@ movePrevios model =
         |> selectionClear
         |> blinkBlock
         |> \m -> eventLog (printVScrollInfo m) m
-        |> \m -> if doVScroll m then m else m
+        |> requestVScroll
 
 moveNext : Model -> Model
 moveNext model =
@@ -351,14 +393,14 @@ moveNext model =
         |> selectionClear
         |> blinkBlock
         |> \m -> eventLog (printVScrollInfo m) m
-        |> \m -> if doVScroll m then m else m
+        |> requestVScroll
 
 ------------------------------------------------------------
 -- scroll
 ------------------------------------------------------------
 
-doVScroll : Model -> Bool
-doVScroll model =
+requestVScroll : Model -> Model
+requestVScroll model =
     let
         frameRect  = getBoundingClientRect <| model.id ++ "-editor-frame"
         cursorRect = getBoundingClientRect <| model.id ++ "-cursor"
@@ -367,12 +409,13 @@ doVScroll model =
         margin = cursorRect.height * 3
     in
         if  cursorRect.top - margin < frameRect.top then
-            setScrollTop (model.id ++ "-editor-frame") ( scrtop + (cursorRect.top - frameRect.top ) - margin)
+            { model | scrollReq = Just ( scrtop + (cursorRect.top - frameRect.top ) - margin) }
         else
             if  cursorRect.bottom + margin > frameRect.bottom then
-                setScrollTop (model.id ++ "-editor-frame") ( scrtop + (cursorRect.bottom - frameRect.bottom ) + margin)
+                { model | scrollReq = Just ( scrtop + (cursorRect.bottom - frameRect.bottom ) + margin) }
             else 
-                False
+                { model | scrollReq = Nothing}
+
 
 printVScrollInfo : Model -> String
 printVScrollInfo model =
@@ -917,6 +960,9 @@ elaborateInputAreaEventHandlers: String -> String -> Task Never Bool
 elaborateInputAreaEventHandlers input_area_id paste_area_id =
     Task.succeed (Native.Mice.elaborateInputAreaEventHandlers input_area_id paste_area_id)
 
+setScrollTop : String -> Int -> Task Never Bool
+setScrollTop id pixels =
+    Task.succeed (Native.Mice.setScrollTop id pixels)
 
 
 -- Function
@@ -941,8 +987,6 @@ getBoundingClientRect id = Native.Mice.getBoundingClientRect id
 getScrollTop: String -> Int
 getScrollTop id = Native.Mice.getScrollTop id
 
-setScrollTop : String -> Int -> Bool
-setScrollTop id pixels = Native.Mice.setScrollTop id pixels
 
 getScrollHeight : String -> Int
 getScrollHeight id = Native.Mice.getScrollHeight
