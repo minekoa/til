@@ -61,7 +61,8 @@ type alias Model =
     -- work
     , isPreventedDefaultKeyShortcut : Bool
     , copyReq : Maybe String
-    , scrollReq : Maybe Int -- todo: いまは Vだけ。
+    , vScrollReq : Maybe Int
+    , hScrollReq : Maybe Int
     }
 
 init : String -> String -> Model
@@ -79,7 +80,8 @@ init id text =
 --          (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
           Nothing                --copyReq
-          Nothing                --scrollReq
+          Nothing                --scrollReq (V)
+          Nothing                --scrollReq (H)
 
 -- frame > cursor blink
 
@@ -115,7 +117,8 @@ type Msg
     | PreventDefaultKeyShortcut Bool
     | Copied Bool
     | Pasted String
-    | Scrolled Bool
+    | ScrolledV Bool
+    | ScrolledH Bool
     | Input String
     | KeyDown KeyboardEvent
     | CompositionStart String
@@ -148,8 +151,12 @@ update msg model =
             , Cmd.none
             )
 
-        Scrolled _ ->
-            ( {model | scrollReq = Nothing }
+        ScrolledV _ ->
+            ( {model | vScrollReq = Nothing }
+            , Cmd.none )
+
+        ScrolledH _ ->
+            ( {model | hScrollReq = Nothing }
             , Cmd.none )
 
 
@@ -161,9 +168,12 @@ update msg model =
             in
                 ( m
                 , Cmd.batch [ c
-                            , case m.scrollReq of
+                            , case m.vScrollReq of
                                   Nothing -> Cmd.none
-                                  Just n  -> Task.perform Scrolled (setScrollTop (model.id ++ "-editor-frame") n )
+                                  Just n  -> Task.perform ScrolledV (setScrollTop (model.id ++ "-editor-frame") n )
+                            , case m.hScrollReq of
+                                  Nothing -> Cmd.none
+                                  Just n  -> Task.perform ScrolledH (setScrollLeft (model.id ++ "-editor-frame") n )
                             ]
                 )
 
@@ -176,9 +186,12 @@ update msg model =
                             , case m.copyReq of
                                   Nothing -> Cmd.none
                                   Just s  -> Task.perform Copied (copyToClipboard (model.id ++ "-clipboard-copy") s)
-                            , case m.scrollReq of
+                            , case m.vScrollReq of
                                   Nothing -> Cmd.none
-                                  Just n  -> Task.perform Scrolled (setScrollTop (model.id ++ "-editor-frame") n )
+                                  Just n  -> Task.perform ScrolledV (setScrollTop (model.id ++ "-editor-frame") n )
+                            , case m.hScrollReq of
+                                  Nothing -> Cmd.none
+                                  Just n  -> Task.perform ScrolledH (setScrollLeft (model.id ++ "-editor-frame") n )
                             ]
                 )
  
@@ -195,9 +208,12 @@ update msg model =
             in
                 ( m
                 , Cmd.batch [ c
-                            , case m.scrollReq of
+                            , case m.vScrollReq of
                                   Nothing -> Cmd.none
-                                  Just n  -> Task.perform Scrolled (setScrollTop (model.id ++ "-editor-frame") n)
+                                  Just n  -> Task.perform ScrolledV (setScrollTop (model.id ++ "-editor-frame") n)
+                            , case m.hScrollReq of
+                                  Nothing -> Cmd.none
+                                  Just n  -> Task.perform ScrolledH (setScrollLeft (model.id ++ "-editor-frame") n )
                             ]
                 )
 
@@ -392,14 +408,14 @@ moveForward model =
     { model | buffer = Buffer.moveForward model.buffer }
         |> selectionClear
         |> blinkBlock
-        |> requestVScroll
+        |> requestScroll
 
 moveBackward : Model -> Model
 moveBackward model =
     { model | buffer = Buffer.moveBackward model.buffer }
         |> selectionClear
         |> blinkBlock
-        |> requestVScroll
+        |> requestScroll
 
 movePrevios : Model -> Model
 movePrevios model =
@@ -407,7 +423,7 @@ movePrevios model =
         |> selectionClear
         |> blinkBlock
         |> \m -> eventLog (printVScrollInfo m) m
-        |> requestVScroll
+        |> requestScroll
 
 moveNext : Model -> Model
 moveNext model =
@@ -415,11 +431,14 @@ moveNext model =
         |> selectionClear
         |> blinkBlock
         |> \m -> eventLog (printVScrollInfo m) m
-        |> requestVScroll
+        |> requestScroll
 
 ------------------------------------------------------------
 -- scroll
 ------------------------------------------------------------
+
+requestScroll : Model -> Model
+requestScroll = requestVScroll >> requestHScroll
 
 requestVScroll : Model -> Model
 requestVScroll model =
@@ -431,12 +450,30 @@ requestVScroll model =
         margin = cursorRect.height * 3
     in
         if  cursorRect.top - margin < frameRect.top then
-            { model | scrollReq = Just ( scrtop + (cursorRect.top - frameRect.top ) - margin) }
+            { model | vScrollReq = Just ( scrtop + (cursorRect.top - frameRect.top ) - margin) }
         else
             if  cursorRect.bottom + margin > frameRect.bottom then
-                { model | scrollReq = Just ( scrtop + (cursorRect.bottom - frameRect.bottom ) + margin) }
+                { model | vScrollReq = Just ( scrtop + (cursorRect.bottom - frameRect.bottom ) + margin) }
             else 
-                { model | scrollReq = Nothing}
+                { model | vScrollReq = Nothing}
+
+requestHScroll : Model -> Model
+requestHScroll model =
+    let
+        frameRect  = getBoundingClientRect <| model.id ++ "-editor-frame"
+        cursorRect = getBoundingClientRect <| model.id ++ "-cursor"
+        scrleft    = getScrollLeft (model.id ++ "-editor-frame")
+
+        margin = cursorRect.height * 3
+    in
+        if  cursorRect.left - margin < frameRect.left then
+            { model | hScrollReq = Just ( scrleft + (cursorRect.left - frameRect.left ) - margin) }
+        else
+            if  cursorRect.right + margin > frameRect.right then
+                { model | hScrollReq = Just ( scrleft + (cursorRect.right - frameRect.right ) + margin) }
+            else 
+                { model | hScrollReq = Nothing}
+
 
 
 printVScrollInfo : Model -> String
@@ -495,7 +532,7 @@ selectBackward model =
         |> (\ m -> { m | buffer = Buffer.moveBackward m.buffer })
         |> selectionUpdate
         |> blinkBlock
-        |> requestVScroll
+        |> requestScroll
 
 
 selectForward: Model -> Model
@@ -505,7 +542,7 @@ selectForward model =
         |> (\m -> { m | buffer = Buffer.moveForward m.buffer })
         |> selectionUpdate
         |> blinkBlock
-        |> requestVScroll
+        |> requestScroll
 
 selectPrevios: Model -> Model
 selectPrevios model =
@@ -514,7 +551,7 @@ selectPrevios model =
         |> (\m -> { m | buffer = Buffer.movePrevios m.buffer })
         |> selectionUpdate
         |> blinkBlock
-        |> requestVScroll
+        |> requestScroll
 
 selectNext: Model -> Model
 selectNext model =
@@ -523,7 +560,7 @@ selectNext model =
         |> (\m -> { m | buffer = Buffer.moveNext m.buffer })
         |> selectionUpdate
         |> blinkBlock
-        |> requestVScroll
+        |> requestScroll
 
 
 ------------------------------------------------------------
@@ -996,6 +1033,10 @@ setScrollTop : String -> Int -> Task Never Bool
 setScrollTop id pixels =
     Task.succeed (Native.Mice.setScrollTop id pixels)
 
+setScrollLeft : String -> Int -> Task Never Bool
+setScrollLeft id pixels =
+    Task.succeed (Native.Mice.setScrollLeft id pixels)
+
 
 -- Function
 
@@ -1019,6 +1060,8 @@ getBoundingClientRect id = Native.Mice.getBoundingClientRect id
 getScrollTop: String -> Int
 getScrollTop id = Native.Mice.getScrollTop id
 
+getScrollLeft: String -> Int
+getScrollLeft id = Native.Mice.getScrollLeft id
 
 getScrollHeight : String -> Int
 getScrollHeight id = Native.Mice.getScrollHeight
