@@ -233,6 +233,7 @@ update msg model =
 
         SetFocus ->
             ( model
+                |> eventLog "setfocus" ""
             , Task.perform (\_ -> IgnoreResult) (doFocus <| model.id ++ "-input"))
 
         DragStart row xy ->
