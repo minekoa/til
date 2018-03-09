@@ -93,6 +93,11 @@ miyamo さんに教えてもらった
 
 * [ElmのHtml.Events.onWithOptionsがJSにどうやって翻訳されるか](https://scrapbox.io/miyamoen/Elm%E3%81%AEHtml.Events.onWithOptions%E3%81%8CJS%E3%81%AB%E3%81%A9%E3%81%86%E3%82%84%E3%81%A3%E3%81%A6%E7%BF%BB%E8%A8%B3%E3%81%95%E3%82%8C%E3%82%8B%E3%81%8B)
 
+(参考)
+
+* https://github.com/miyamoen/elm-grid-generator/blob/master/src/View.elm#L36
+* [[Elm] SPAルーティングで特殊クリックをあつかう | Qiita](https://qiita.com/arowM/items/75c6aa0e1a29ecdb88bd)
+
 
 ## もっと困った話
 

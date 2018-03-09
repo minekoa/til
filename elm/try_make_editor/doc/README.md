@@ -27,6 +27,7 @@
 * [デフォルトのキーボード・ショートカットを殺す](prevent-defalut-keyboard-shortcut.md)
 * [elm-make がとてもとても長い問題](problem_time_is_very_long_for_elm-make.md)
 * [クリップボードは地獄や](clipboard_is_hell.md)
+* [カーソル移動でスクロールを行う](scroll_by_cursor_moving.md)
 
 ## TODO
 
