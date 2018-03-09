@@ -841,6 +841,7 @@ markerLayer model =
                                                     , ("color","white")
                                                     , ("white-space", "pre")
                                                     , ("border","none"), ("padding", "0"), ("margin", "0")
+                                                    , ("z-index", "99") -- note: 範囲選択を一番上にしたいため 99 という数字自体に意味はない
                                                     ]
                                             ]
                                             [ Buffer.line m.row model.buffer.contents |> Maybe.withDefault ""
