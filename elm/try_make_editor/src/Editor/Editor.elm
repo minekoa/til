@@ -147,7 +147,7 @@ update msg model =
 
         Pasted s ->
             ( paste model (Buffer.nowCursorPos model.buffer) s
-              |> eventLog ("PASTE:`" ++ s ++ "`")
+              |> eventLog "pasete" s
             , Cmd.none
             )
 
@@ -256,8 +256,11 @@ update msg model =
             in
 --                ( { model | buffer = b2, xy = xy}
                 ( { model | buffer = b2 }
-                  |> eventLog ("Ds(" ++ (toString xy.x) ++ ", " ++ (toString xy.y) ++ "{lft" ++ (toString rect.left) ++")")
-                  |> eventLog ("CALC(" ++ ln ++ "):" ++ (toString col))
+                  |> eventLog "dragstart" ("pos=" ++ (toString xy.x) ++ "," ++ (toString xy.y)
+                                               ++ "; offsetx=" ++ (toString (xy.x - rect.left))
+                                               ++ "; row=" ++ (toString row)
+                                               ++ "; calced_col=" ++ (toString col)
+                                          )
                   |> blinkBlock
                 , Cmd.none )
 
@@ -278,7 +281,7 @@ input s model =
         False ->
             ( insert model (Buffer.nowCursorPos model.buffer) (String.right 1 s)
                 |> inputBufferClear
-                |> eventLog ("(" ++ (String.right 1 s) ++ ")")
+                |> eventLog "input" (String.right 1 s)
             , Cmd.none)
 
 
@@ -347,7 +350,7 @@ keymapper (ctrl, alt, shift, keycode) =
 keyDown : KeyboardEvent -> Model -> (Model, Cmd Msg)
 keyDown e model =
     ( keymapper (e.ctrlKey, e.altKey, e.shiftKey, e.keyCode) model
-      |> eventLog ("D:" ++ keyboarEvent_toString e)
+      |> eventLog "keydown" (keyboarEvent_toString e)
     , Cmd.none )
 
 compositionStart : String -> Model -> (Model, Cmd Msg)
@@ -358,7 +361,7 @@ compositionStart data model =
       }
       |> inputBufferClear -- 直前にenterでない確定をした場合向け
       |> blinkBlock
-      |> eventLog ("Cs{" ++ data ++ "} ")
+      |> eventLog "compositoinstart" data
     , Cmd.none
     )
 
@@ -366,7 +369,7 @@ compositionUpdate : String -> Model -> (Model, Cmd Msg)
 compositionUpdate data model =
     ( { model | compositionData = Just data }
       |> blinkBlock
-      |> eventLog ("Cu{" ++ data ++ "} ")
+      |> eventLog "compositionupdate" data
     , Cmd.none
     )
 
@@ -376,7 +379,7 @@ compositionEnd data model =
       |> composerDisable
       |> inputBufferClear
       |> blinkBlock
-      |> eventLog ("Ce{" ++ data ++ "} ")
+      |> eventLog "compositionend" data
     , Cmd.none
     )
 
@@ -384,9 +387,12 @@ compositionEnd data model =
 -- control state update
 ------------------------------------------------------------
 
-eventLog : String -> Model -> Model
-eventLog s model =
-    { model | event_log = (s :: model.event_log) }
+eventLog : String -> String -> Model -> Model
+eventLog ev data model =
+    let
+        s = "(" ++ ev ++ ":" ++ data ++ ") "
+    in
+        { model | event_log = s :: model.event_log }
 
 inputBufferClear : Model -> Model
 inputBufferClear model =
@@ -422,7 +428,6 @@ movePrevios model =
     { model | buffer = Buffer.movePrevios model.buffer }
         |> selectionClear
         |> blinkBlock
-        |> \m -> eventLog (printVScrollInfo m) m
         |> requestScroll
 
 moveNext : Model -> Model
@@ -430,7 +435,6 @@ moveNext model =
     { model | buffer = Buffer.moveNext model.buffer }
         |> selectionClear
         |> blinkBlock
-        |> \m -> eventLog (printVScrollInfo m) m
         |> requestScroll
 
 ------------------------------------------------------------
