@@ -142,57 +142,11 @@ view model =
                       ]
               ] [ Html.map EditorMsg (Editor.view model.editor) ]
         , modeline model
-        , div [] [ button [ onClick MoveBackword ] [text "←"]
-                 , button [ onClick MovePrevios  ] [text "↑"]
-                 , button [ onClick MoveNext     ] [text "↓"]
-                 , button [ onClick MoveForward  ] [text "→"]
-                 , text "|"
-                 , button [ onClick Backspace ] [ text "BS" ]
-                 , button [ onClick Delete ] [ text "DEL" ]
-                 , text "|"
-                 , button [ onClick Copy ]   [ text "Copy" ]
-                 , button [ onClick Cut ]   [ text "Cut" ]
-                 , button [ onClick Pasete ] [ text "Pasete" ]
-                 , text "|"
-                 , button [ onClick Undo ]   [ text "Undo" ]
-                 , text "|"
-                 , input [ type_ "file", id "file_open" ][]
-                 ]
-        , div [] [ text model.editor.copyStore ]
-        , div [ style [ ("display", "flex")
-                      , ("flex-direction", "row")
-                      , ("width" , "100%"), ("height", "100%")
-                      , ("flex-grow", "3")
-                      , ("min-height", "3em")
-                      , ("max-height", "8em")
-                      ]
-              ]
-              [ div [ style [ ("width", "8em"), ("overflow","scroll")] ]
-                    ( List.map
-                          (\ c ->
-                               let
-                                   pos2str = \ row col -> "(" ++ (toString row) ++ ", " ++ (toString col) ++")" 
-                                   celstyle = style [("text-wrap", "none"), ("white-space","nowrap"), ("color", "gray")]
-                               in
-                                   case c of
-                                       Buffer.Cmd_Insert (row, col) str ->
-                                           div [celstyle] [ "Ins" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                                       Buffer.Cmd_Backspace (row, col) str ->
-                                           div [celstyle] [ "Bs_" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                                       Buffer.Cmd_Delete (row, col) str ->
-                                           div [celstyle] [ "Del" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                          ) model.editor.buffer.history
-                    )
-              , div [ style [ ("overflow","scroll")
-                            , ("width", "calc( 100% - 2px )")
-                            , ("border", "1px solid black")
-                            ]
-                    ] 
-                    ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_log )
-              ]
+        , controlPane model
+        , debugPane model
         ]
 
-modeline : Model -> Html Msg 
+modeline : Model -> Html msg
 modeline model =
     let
         toCursorString    = \c -> "(" ++ (toString c.row) ++ ", " ++ (toString c.column) ++ ")"
@@ -210,7 +164,7 @@ modeline model =
                                          )
                         |> Maybe.withDefault ""
     in
-        div [ class "modeline"
+        div [ id "modeline"
             , style [ ("background-color","black")
                     , ("color", "white")
                     ]
@@ -218,5 +172,86 @@ modeline model =
               , text <| toIMEString model.editor.compositionData
               , text <| toSelectionString model.editor.buffer.selection
               ]
+
+controlPane : Model -> Html Msg
+controlPane model =
+    div [ id "control-pane"
+        , style [("background-color", "silver")]
+        ] [ button [ onClick MoveBackword ] [text "←"]
+           , button [ onClick MovePrevios  ] [text "↑"]
+           , button [ onClick MoveNext     ] [text "↓"]
+           , button [ onClick MoveForward  ] [text "→"]
+           , text "|"
+           , button [ onClick Backspace ] [ text "BS" ]
+           , button [ onClick Delete ] [ text "DEL" ]
+           , text "|"
+           , button [ onClick Copy ]   [ text "Copy" ]
+           , button [ onClick Cut ]   [ text "Cut" ]
+           , button [ onClick Pasete ] [ text "Pasete" ]
+           , text "|"
+           , button [ onClick Undo ]   [ text "Undo" ]
+           , text "|"
+           , input [ type_ "file", id "file_open" ][]
+           ]
+
+debugPane : Model -> Html msg
+debugPane model =
+    div [ id "debug-pane"
+        , class "hbox"
+        , style [ ("display", "flex")
+                , ("flex-direction", "row")
+                , ("width" , "100%"), ("height", "100%")
+                , ("flex-grow", "3")
+                , ("min-height", "3em")
+                , ("max-height", "8em")
+                ]
+        ] [ div [ id "debug-pane-history"
+                ,style [ ("min-width", "8em")
+                        , ("overflow","scroll")
+                        , ("flex-grow", "2")
+                        ]
+                ]
+                ( List.map
+                          (\ c ->
+                               let
+                                   pos2str = \ row col -> "(" ++ (toString row) ++ ", " ++ (toString col) ++")" 
+                                   celstyle = style [("text-wrap", "none"), ("white-space","nowrap"), ("color", "gray")]
+                               in
+                                   case c of
+                                       Buffer.Cmd_Insert (row, col) str ->
+                                           div [celstyle] [ "Ins" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                                       Buffer.Cmd_Backspace (row, col) str ->
+                                           div [celstyle] [ "Bs_" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                                       Buffer.Cmd_Delete (row, col) str ->
+                                           div [celstyle] [ "Del" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                          ) model.editor.buffer.history
+                    )
+          , div [ class "vbox"
+                , style [ ("flex-grow", "8")
+                        , ("display", "flex"), ("flex-direction", "column")
+                        ]
+                ] [ div [ id "debug-pane-clipboard"
+                        , class "hbox"
+                        , style [ ("flex-grow", "2")
+                                , ("width", "100%")
+                                , ("min-height", "2em")
+                                , ("display", "flex"), ("flex-direction", "row")
+                                ]
+                        ] [ div [ style [ ("background-color","gray"), ("color", "white")] ] [text "clipboard:"]
+                          , div [ style [ ("overflow","auto"), ("width", "100%") ]
+                                ] ( List.map
+                                          (λ ln-> div [ style [("border-bottom", "1px dotted gray"), ("height", "1em")] ] [ text ln ] )
+                                          (String.lines model.editor.copyStore)
+                                  )
+                          ]
+                  , div [ id "debug-pane-eventlog"
+                        , style [ ("overflow","scroll")
+                                , ("width", "calc( 100% - 2px )")
+                                , ("border", "1px solid black")
+                                , ("flex-grow", "8")
+                                ]
+                        ] ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_log )
+                  ]
+          ]
 
 
