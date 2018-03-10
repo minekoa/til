@@ -17,6 +17,14 @@ module Editor.Buffer exposing ( Model
                               , movePrevios
                               , moveNext
 
+                              -- selection
+                              , markSet
+                              , selectBackward
+                              , selectForward
+                              , selectPrevios
+                              , selectNext
+                              , selectionClear
+
                               -- edit
                               , insert
                               , backspace
@@ -28,6 +36,7 @@ module Editor.Buffer exposing ( Model
 type alias Model =
     { cursor : Cursor
     , contents : List String
+    , selection : Maybe Range
     , history : List EditCommand
     }
 
@@ -35,6 +44,7 @@ init : String -> Model
 init text =
     Model (Cursor 0 0)           -- cursor
           (String.lines text)    -- contents
+          Nothing                -- selection
           []                     -- history
 
 
@@ -208,6 +218,48 @@ moveNext model =
             )
         |> Maybe.withDefault cur
         |> (λ c -> {model | cursor = c})
+
+
+------------------------------------------------------------
+-- selection (markset)
+------------------------------------------------------------
+
+markSet: Model -> Model
+markSet model =
+    let
+        pos = nowCursorPos model
+    in
+        { model | selection = Range pos pos |> Just }
+
+
+------------------------------------------------------------
+-- selection (with cursor move)
+------------------------------------------------------------
+
+selectBackward: Model -> Model
+selectBackward = selectWithMove moveBackward
+
+selectForward: Model -> Model
+selectForward = selectWithMove moveForward
+
+selectPrevios: Model -> Model
+selectPrevios = selectWithMove movePrevios
+
+selectNext: Model -> Model
+selectNext = selectWithMove moveNext
+
+selectionClear: Model -> Model
+selectionClear model =
+    { model | selection = Nothing }
+
+-- Tool
+
+selectWithMove : (Model -> Model) -> Model -> Model
+selectWithMove move_f model =
+    model
+        |> \m -> { m | selection = m.selection |> Maybe.withDefault (Range (nowCursorPos m) (nowCursorPos m)) |> Just }
+        |> move_f
+        |> \m -> { m | selection = m.selection |> Maybe.andThen (\s -> Just (Range s.begin (nowCursorPos m))) }
 
 ------------------------------------------------------------
 -- edit

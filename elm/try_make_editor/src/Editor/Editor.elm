@@ -44,7 +44,6 @@ type alias Model =
     , buffer : Buffer.Model
 
     -- ?
-    , selection : Maybe Buffer.Range
     , copyStore : String
 
     -- frame
@@ -69,7 +68,6 @@ init : String -> String -> Model
 init id text =
     Model id                     -- id
           (Buffer.init text)
-          Nothing                -- selection
           ""                     -- copyStore
           ""                     -- input_buffer
           False Nothing          -- COMPOSER STATE
@@ -299,13 +297,13 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=False, alt=False, shift=True , code= 40, f=selectNext }     -- 'S-↓' 
 
                  , {ctrl=False, alt=False, shift=False, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) } -- BS
-                 , {ctrl=False, alt=False, shift=False, code= 46, f=(\m -> case m.selection of
+                 , {ctrl=False, alt=False, shift=False, code= 46, f=(\m -> case m.buffer.selection of
                                                                                Nothing -> delete m (Buffer.nowCursorPos m.buffer)
                                                                                Just s  -> deleteRange m s 
                                                                     )  }   -- DEL
 
-                 , {ctrl=True , alt=False, shift=False, code= 67, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'C-c'
-                 , {ctrl=True , alt=False, shift=False, code= 88, f=(\m -> m.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m) } -- 'C-x'
+                 , {ctrl=True , alt=False, shift=False, code= 67, f=(\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'C-c'
+                 , {ctrl=True , alt=False, shift=False, code= 88, f=(\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m) } -- 'C-x'
                  -- C-v は、クリップボードと連携したいので、ブラウザのpasteイベントを発火させる、ので、ここでは何もしない
 
                  , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
@@ -316,7 +314,7 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=True , alt=False, shift=False, code= 78, f=moveNext }    --  'C-n'
                  , {ctrl=True , alt=False, shift=False, code= 80, f=movePrevios } --  'C-p'
                  , {ctrl=True , alt=False, shift=False, code= 72, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) }  -- 'C-h'
-                 , {ctrl=True , alt=False, shift=False, code= 68, f=(\m -> case m.selection of
+                 , {ctrl=True , alt=False, shift=False, code= 68, f=(\m -> case m.buffer.selection of
                                                                                Nothing -> delete m (Buffer.nowCursorPos m.buffer)
                                                                                Just s  -> deleteRange m s
                                                                     )  }    -- 'C-d'
@@ -501,68 +499,35 @@ printVScrollInfo model =
 -- selection
 ------------------------------------------------------------
 
-selection_update: (Int, Int) -> Buffer.Range -> Buffer.Range
-selection_update (row, col) sel =
-    {sel| end = (row, col)}
-
-markSetIfNothing : Model -> Model
-markSetIfNothing model =
-    let
-        pos = Buffer.nowCursorPos model.buffer
-    in
-        case model.selection of
-            Nothing ->
-                { model | selection = Just <| Buffer.Range pos pos }
-            Just sel ->
-                model
-
-selectionUpdate : Model -> Model
-selectionUpdate model =
-    let
-        row = model.buffer.cursor.row
-        col =  model.buffer.cursor.column
-    in
-        { model | selection = model.selection |> Maybe.andThen (selection_update (row, col) >> Just) }
-
 selectionClear : Model -> Model
 selectionClear model =
-    { model | selection = Nothing }
-
+    { model | buffer = Buffer.selectionClear model.buffer }
 
 selectBackward: Model -> Model
 selectBackward model =
     model
-        |> markSetIfNothing
-        |> (\ m -> { m | buffer = Buffer.moveBackward m.buffer })
-        |> selectionUpdate
+        |> (\ m -> { m | buffer = Buffer.selectBackward m.buffer })
         |> blinkBlock
         |> requestScroll
-
 
 selectForward: Model -> Model
 selectForward model =
     model
-        |> markSetIfNothing
-        |> (\m -> { m | buffer = Buffer.moveForward m.buffer })
-        |> selectionUpdate
+        |> (\m -> { m | buffer = Buffer.selectForward m.buffer })
         |> blinkBlock
         |> requestScroll
 
 selectPrevios: Model -> Model
 selectPrevios model =
     model
-        |> markSetIfNothing
-        |> (\m -> { m | buffer = Buffer.movePrevios m.buffer })
-        |> selectionUpdate
+        |> (\m -> { m | buffer = Buffer.selectPrevios m.buffer })
         |> blinkBlock
         |> requestScroll
 
 selectNext: Model -> Model
 selectNext model =
     model
-        |> markSetIfNothing
-        |> (\m -> { m | buffer = Buffer.moveNext m.buffer })
-        |> selectionUpdate
+        |> (\m -> { m | buffer = Buffer.selectNext m.buffer })
         |> blinkBlock
         |> requestScroll
 
@@ -807,7 +772,7 @@ cursorLayer model =
 
 markerLayer: Model -> Html Msg
 markerLayer model =
-    case model.selection of
+    case model.buffer.selection of
         Nothing ->
             text ""
 

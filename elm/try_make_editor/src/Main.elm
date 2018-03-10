@@ -79,7 +79,7 @@ update msg model =
 
         Delete ->
             ( { model
-                  | editor =  case model.editor.selection of
+                  | editor =  case model.editor.buffer.selection of
                                   Nothing -> Editor.delete model.editor (Buffer.nowCursorPos model.editor.buffer)
                                   Just s  -> Editor.deleteRange model.editor s
               }
@@ -87,13 +87,17 @@ update msg model =
 
         Copy ->
             ( { model
-                  | editor = model.editor.selection |> Maybe.andThen (\sel -> Just <| Editor.copy model.editor sel) |> Maybe.withDefault model.editor
+                  | editor = model.editor.buffer.selection
+                                 |> Maybe.andThen (\sel -> Just <| Editor.copy model.editor sel)
+                                 |> Maybe.withDefault model.editor
               }
             , Cmd.none)
 
         Cut ->
             ( { model
-                  | editor = model.editor.selection |> Maybe.andThen (\sel -> Just <| Editor.cut model.editor sel) |> Maybe.withDefault model.editor
+                  | editor = model.editor.buffer.selection
+                                 |> Maybe.andThen (\sel -> Just <| Editor.cut model.editor sel)
+                                 |> Maybe.withDefault model.editor
               }
             , Cmd.none)
 
@@ -137,19 +141,7 @@ view model =
                       , ("flex-grow", "8")
                       ]
               ] [ Html.map EditorMsg (Editor.view model.editor) ]
-        , div [ class "modeline"
-              , style [ ("background-color","black")
-                      , ("color", "white")
-                      ]
-              ] [ text <| "(" ++ (toString model.editor.buffer.cursor.row) ++ ", " ++ (toString model.editor.buffer.cursor.column) ++ ")"
-                , text <| if model.editor.enableComposer then ("[IME] " ++ (Maybe.withDefault "" model.editor.compositionData) ) else "" 
-                , model.editor.selection |> Maybe.andThen (\s-> Just <| " select:(" ++ (s.begin |> Tuple.first |> toString)
-                                                               ++ "," ++ (s.begin |> Tuple.second |> toString) 
-                                                               ++ ")-(" ++ (s.end |> Tuple.first |> toString)
-                                                               ++ "," ++ (s.end |> Tuple.second |> toString) ++ ")"
-                                                          ) |> Maybe.withDefault "" |> text
-
-                ]
+        , modeline model
         , div [] [ button [ onClick MoveBackword ] [text "←"]
                  , button [ onClick MovePrevios  ] [text "↑"]
                  , button [ onClick MoveNext     ] [text "↓"]
@@ -199,4 +191,32 @@ view model =
                     ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_log )
               ]
         ]
+
+modeline : Model -> Html Msg 
+modeline model =
+    let
+        toCursorString    = \c -> "(" ++ (toString c.row) ++ ", " ++ (toString c.column) ++ ")"
+        toIMEString       =
+            \ compositionData -> compositionData
+                          |> Maybe.andThen (\d -> Just <| "[IME] " ++ d )
+                          |> Maybe.withDefault ""
+        toSelectionString =
+            \ selection -> selection
+                        |> Maybe.andThen (\s-> Just <|
+                                              " select:(" ++ (s.begin |> Tuple.first |> toString)
+                                              ++ "," ++ (s.begin |> Tuple.second |> toString) 
+                                              ++ ")-(" ++ (s.end |> Tuple.first |> toString)
+                                              ++ "," ++ (s.end |> Tuple.second |> toString) ++ ")"
+                                         )
+                        |> Maybe.withDefault ""
+    in
+        div [ class "modeline"
+            , style [ ("background-color","black")
+                    , ("color", "white")
+                    ]
+            ] [ text <| toCursorString model.editor.buffer.cursor
+              , text <| toIMEString model.editor.compositionData
+              , text <| toSelectionString model.editor.buffer.selection
+              ]
+
 
