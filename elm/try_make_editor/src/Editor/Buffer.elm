@@ -35,16 +35,16 @@ module Editor.Buffer exposing ( Model
 
 type alias Model =
     { cursor : Cursor
-    , contents : List String
     , selection : Maybe Range
+    , contents : List String
     , history : List EditCommand
     }
 
 init : String -> Model
 init text =
     Model (Cursor 0 0)           -- cursor
-          (String.lines text)    -- contents
           Nothing                -- selection
+          (String.lines text)    -- contents
           []                     -- history
 
 
