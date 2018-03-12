@@ -261,7 +261,8 @@ update msg model =
                                                ++ "; calced_col=" ++ (toString col)
                                           )
                   |> blinkBlock
-                , Cmd.none )
+                , Task.perform (\_ -> IgnoreResult) (doFocus <| model.id ++ "-input") -- firefox 限定で、たまーに、SetFocus が来ないことがあるので、ここでもやっとく。
+                )
 
         Tick new_time ->
             ( {model | blink = blinkTransition model.blink }
@@ -609,6 +610,9 @@ view model =
         , style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                 , ("overflow","auto")
                 , ( "position", "relative")
+                , ("user-select", "none")
+                , ("-webkit-user-select", "none")
+                , ("-moz-user-select", "none")
                 ]
         ]
         [ div [ id (model.id ++ "-editor-scene")
