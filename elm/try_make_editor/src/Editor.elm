@@ -119,6 +119,7 @@ type Msg
     | ScrolledH Bool
     | Input String
     | KeyDown KeyboardEvent
+    | KeyPress Int
     | CompositionStart String
     | CompositionUpdate String
     | CompositionEnd String
@@ -193,6 +194,15 @@ update msg model =
                             ]
                 )
  
+        KeyPress code ->
+            -- IME入力中にkeypress イベントがこないことを利用して IME入力モード(inputを反映するか否かのフラグ）を解除
+            -- ※ compositonEnd で解除してしまうと、firefoxとchromeの振る舞いの違いでハマる
+            --        chrome  :: keydown 229 -> input s          -> compositionend s
+            --        firefox ::   (null)    -> compositionend s -> input s
+            ( model
+                |> composerDisable
+                |> eventLog "keypress" (toString code)
+            , Cmd.none )
 
         CompositionStart data ->
             compositionStart data model
@@ -277,6 +287,7 @@ input s model =
             ( { model
                   | input_buffer = s
               }
+              |> eventLog "input (ignored)" s
             , Cmd.none )
         False ->
             ( insert model (Buffer.nowCursorPos model.buffer) (String.right 1 s)
@@ -375,8 +386,11 @@ compositionUpdate data model =
 
 compositionEnd : String -> Model -> (Model, Cmd Msg)
 compositionEnd data model =
+    -- note: 変換プレビューのクリアはするが、
+    --        firefox ではこの後 input イベントがくるので、
+    --        それを無視する為 enable-conposerは立てたままにする (keypressイベントで解除する、そちらを参照)
     ( insert model (Buffer.nowCursorPos model.buffer) data
-      |> composerDisable
+      |> compositionDataClear
       |> inputBufferClear
       |> blinkBlock
       |> eventLog "compositionend" data
@@ -403,6 +417,12 @@ composerDisable model =
     { model
         | compositionData = Nothing
         , enableComposer = False
+    }
+
+compositionDataClear : Model -> Model
+compositionDataClear model =                       
+    { model
+        | compositionData = Nothing
     }
 
 ------------------------------------------------------------
@@ -756,6 +776,7 @@ cursorLayer model =
                      [ textarea [ id <| model.id ++ "-input"
                                 , onInput Input
                                 , onKeyDown KeyDown
+                                , onKeyPress KeyPress
                                 , onCompositionStart CompositionStart
                                 , onCompositionUpdate CompositionUpdate
                                 , onCompositionEnd CompositionEnd
