@@ -4,7 +4,7 @@ import Html.Events exposing (..)
 import Json.Encode as Encode
 import Json.Decode as Json
 
-import Editor.Editor as Editor
+import Editor
 import Editor.Buffer as Buffer
 
 main : Program Never Model Msg

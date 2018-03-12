@@ -1,26 +1,26 @@
-module Editor.Editor exposing ( Model
-                              , init
-                              , update
-                              , Msg(..)
-                              , moveForward
-                              , moveBackward
-                              , movePrevios
-                              , moveNext
-                              , selectForward
-                              , selectBackward
-                              , selectPrevios
-                              , selectNext
-                              , insert
-                              , backspace
-                              , delete
-                              , deleteRange
-                              , undo
-                              , copy
-                              , cut
-                              , paste
-                              , subscriptions
-                              , view
-                              )
+module Editor exposing ( Model
+                       , init
+                       , update
+                       , Msg(..)
+                       , moveForward
+                       , moveBackward
+                       , movePrevios
+                       , moveNext
+                       , selectForward
+                       , selectBackward
+                       , selectPrevios
+                       , selectNext
+                       , insert
+                       , backspace
+                       , delete
+                       , deleteRange
+                       , undo
+                       , copy
+                       , cut
+                       , paste
+                       , subscriptions
+                       , view
+                       )
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
