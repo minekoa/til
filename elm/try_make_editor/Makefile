@@ -3,13 +3,14 @@ ELM_PACKAGE=elm-package
 ELM_TEST=elm-test
 
 SRC_DIR=src
+DEMO_DIR=demo
 OUT_DIR=dist
 TARGET=main.js
 
 .PHONY: all env compile release clean
 
 all: $(OUT_DIR)/$(TARGET)
-	cp index.html $(OUT_DIR)/index.html
+	cp $(DEMO_DIR)/index.html $(OUT_DIR)/index.html
 
 
 env:
@@ -17,8 +18,8 @@ env:
 	mkdir -p $(OUT_DIR)
 
 
-$(OUT_DIR)/$(TARGET): $(SRC_DIR)/Main.elm
-	$(ELM_MAKE) $(SRC_DIR)/Main.elm --output $(OUT_DIR)/$(TARGET)
+$(OUT_DIR)/$(TARGET): $(DEMO_DIR)/Main.elm
+	$(ELM_MAKE) $(DEMO_DIR)/Main.elm --output $(OUT_DIR)/$(TARGET)
 
 clean:
 	rm -rf $(OUT_DIR)
