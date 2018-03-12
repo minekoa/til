@@ -817,6 +817,7 @@ markerLayer model =
                                             [ Buffer.line m.row model.buffer.contents |> Maybe.withDefault ""
                                               |> String.dropLeft m.begin_col
                                               |> String.left (m.end_col - m.begin_col)
+                                              |> (\l -> if l == "" then " " else l)
                                               |> text
                                             ]
                                       ]
