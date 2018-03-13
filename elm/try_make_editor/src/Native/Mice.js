@@ -34,9 +34,8 @@ var _minekoa$project$Native_Mice = function() {
 
     function elaborateInputAreaEventHandlers(id_input_area, id_paste_area) {
         const input_area = document.getElementById(id_input_area);
-        const paste_area = document.getElementById(id_paste_area);
 
-        if ((input_area == null) || (paste_area == null)) {
+        if (input_area == null) {
             return false;
         }
         
@@ -63,9 +62,12 @@ var _minekoa$project$Native_Mice = function() {
             const data_transfer = (e.clipboardData) || (window.clipboardData);
             const str = data_transfer.getData("text/plain");
 
-            paste_area.value = str;
-            const evt = new Event("input", {"bubbles": true, "cancelable": true});
-            paste_area.dispatchEvent(evt);
+            const evt = new CustomEvent("pasted", { "bubbles": true,
+                                                    "cancelable": true,
+                                                    "detail": str
+                                                  }
+                                       );
+            input_area.dispatchEvent(evt);
         });
 
         return true;

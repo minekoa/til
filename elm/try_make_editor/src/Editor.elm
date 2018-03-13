@@ -654,10 +654,6 @@ controller model =
         [ textarea [ id <| model.id ++ "-clipboard-copy"
                    , tabindex -1
                    ] []
-        , textarea [ id <| model.id ++ "-clipboard-paste"
-                   , onInput Pasted
-                   , tabindex -1
-                   ] []
         ]
 
 
@@ -780,6 +776,7 @@ cursorLayer model =
                                 , onCompositionStart CompositionStart
                                 , onCompositionUpdate CompositionUpdate
                                 , onCompositionEnd CompositionEnd
+                                , onPasted Pasted
                                 , value model.input_buffer
                                 , style [ ("width", "1px"), ("border", "none"), ("padding", "0"), ("margin","0"), ("outline", "none")
                                         , ("overflow", "hidden"), ("opacity", "0")
@@ -1006,6 +1003,13 @@ onFocusOut tagger =
 onMouseDown : (Mouse.Position -> msg) -> Attribute msg
 onMouseDown tagger =
     on "mousedown" (Json.map tagger Mouse.position)
+
+
+-- CustomEvent (clipboard)
+
+onPasted: (String -> msg) -> Attribute msg
+onPasted tagger =
+    on "pasted" (Json.map tagger (Json.field "detail" Json.string))
 
 
 ------------------------------------------------------------
