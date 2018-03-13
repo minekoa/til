@@ -28,6 +28,7 @@
 * [elm-make がとてもとても長い問題](problem_time_is_very_long_for_elm-make.md)
 * [クリップボードは地獄や](clipboard_is_hell.md)
 * [カーソル移動でスクロールを行う](scroll_by_cursor_moving.md)
+* [カスタムイベント](customevent.md)
 
 ## TODO
 
@@ -89,11 +90,11 @@
     * 49.0.2 だったので、focusin / focusout イベントに対応していなかったのが問題だったみたい
     * firefoxのバージョンをあげたら治った
 * [x] 不具合: firefox で 日本語入力確定すると、最後の文字が二重になる
-* [ ] 不具合: firefox C-c でクリップボードにコピーされない
+* [x] 不具合: firefox C-c でクリップボードにコピーされない
     * `document.execCommand(‘cut’/‘copy’) はユーザ生成の短期的なイベントハンドラの内部からの呼び出しでないため拒否されました。` とのこと
 * [x] 問題: firefox で クリックでのカーソル移動が思い（ワンテンポ遅れる）
     * ...再現しなくなった。なぜ？
 * [x] 不具合: firefox で画面クリックでカーソルを移動した時、フォーカスが外れてしまう
     * chromeでは発火していた onclick が発火しないのが原因
     * 常にではない、条件切り分けは出来ていない（ドラッグが発生すると？？を疑っている）
-    
+* [ ] 不具合: Windows でIME入力すると動作が安定しない    

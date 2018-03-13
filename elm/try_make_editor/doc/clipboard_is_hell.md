@@ -79,7 +79,8 @@ element.dispatchEvent(event);
 
 ## 新たなる問題
 
-(http://claytonflesher.github.io/2016/11/01/copy-to-clipboard.html)
+* [How to Copy to the System Clipboard in Elm, and Why it Works](http://claytonflesher.github.io/2016/11/01/copy-to-clipboard.html)
+
 > ## なぜそれが動作するのですか
 > 
 > これは実際にElmの興味深い問題です。 ELmの素晴らしい点の1つは、 副作用がないということです。 
@@ -102,9 +103,31 @@ element.dispatchEvent(event);
 > 
 > イベントリスナーが`body`上にあるため、Elmが`div`再レンダリングしても、リスナーが存続します。
 
+で、[clipboard.js](https://clipboardjs.com/) を
 調べてみたら、clipboard.js がうまいことやってるんじゃなくって、elm から clipboard.js を使うと、bodyのonclickに addEventListener されて、その中で処理されるようになるので、
 Elm側でもいい感じに動くという話だったので、今回の参考にはならない...orz
 
+
+
+### copy イベント
+
+JavaScript 側で `keydown` をつかっても作れるけれど、
+せっかくなので`copy`イベントをつかう。（任意キーバインドは使えなくなってしまうが、まぁ、`paste`がもともとそうなので、対称性がとれていて
+驚き最小な仕様になったと考えよう）
+
+copy（あるいはcut)イベント中にclipboard にデータをセットするには以下の方法でOK
+
+[copy Event Reference | MDN](https://developer.mozilla.org/en-US/docs/Web/Events/copy)
+
+> ```javascript
+> document.addEventListener('copy', function(e){
+>     e.clipboardData.setData('text/plain', 'Hello, world!');
+>     e.clipboardData.setData('text/html', '<b>Hello, world!</b>');
+>     e.preventDefault(); // We want our data, not data from any selection, to be written to the clipboard
+> });
+> ```
+
+続きは、 [カスタムイベント](customevent.md) に書いたので、そちらを参照。
 
 ## 参考
 
