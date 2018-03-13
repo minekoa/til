@@ -32,15 +32,16 @@ var _minekoa$project$Native_Mice = function() {
         return rect;
     }
 
-    function elaborateInputAreaEventHandlers(id_input_area, id_paste_area) {
+    function elaborateInputAreaEventHandlers(id_input_area) {
         const input_area = document.getElementById(id_input_area);
 
         if (input_area == null) {
             return false;
         }
-        
+        console.log("add event listener");
+
         input_area.addEventListener( "keydown", e => {
-            if (e.ctrlKey && (e.keyCode == 86)) { /* C-v : pasteイベントは生かしておきたい */
+            if (e.ctrlKey && (e.keyCode == 86 || e.keyCode == 67 || e.keyCode == 88)) { /* C-v : pasteイベントは生かしておきたい */
                 ;
             }
             else if (e.altKey || e.ctrlKey) {
@@ -61,6 +62,7 @@ var _minekoa$project$Native_Mice = function() {
 
             const data_transfer = (e.clipboardData) || (window.clipboardData);
             const str = data_transfer.getData("text/plain");
+            console.log("paste");
 
             const evt = new CustomEvent("pasted", { "bubbles": true,
                                                     "cancelable": true,
@@ -70,18 +72,40 @@ var _minekoa$project$Native_Mice = function() {
             input_area.dispatchEvent(evt);
         });
 
+        input_area.addEventListener( "copy", e => {
+            e.preventDefault();
+
+            const str = input_area.selecteddata
+            e.clipboardData.setData('text/plain', str);
+            console.log("copy");
+
+            const evt = new CustomEvent("copied", { "bubbles": true,
+                                                    "cancelable": true,
+                                                    "detail": str
+                                                  }
+                                       );
+            input_area.dispatchEvent(evt);
+        });
+
+        input_area.addEventListener( "cut", e => {
+            e.preventDefault();
+
+            const str = input_area.selecteddata
+            e.clipboardData.setData('text/plain', str);
+            console.log("cut");
+
+            const evt = new CustomEvent("cutted", { "bubbles": true,
+                                                    "cancelable": true,
+                                                    "detail": str
+                                                  }
+                                       );
+            input_area.dispatchEvent(evt);
+        });
+
+
         return true;
     }
 
-
-    function copyToClipboard (_id, txt) {
-        const element = document.getElementById(_id); /*textarea であることを期待している */
-        const range = document.createRange();
-
-        element.value = txt;
-        element.select();
-        return document.execCommand('copy');
-    };
 
     /* Scrolling */
 
@@ -133,8 +157,7 @@ var _minekoa$project$Native_Mice = function() {
       doFocus: doFocus,
       calcTextWidth: F2(calcTextWidth),
       getBoundingClientRect: getBoundingClientRect,
-      elaborateInputAreaEventHandlers : F2(elaborateInputAreaEventHandlers),
-      copyToClipboard: F2(copyToClipboard),
+      elaborateInputAreaEventHandlers : elaborateInputAreaEventHandlers,
       getScrollTop: getScrollTop,
       setScrollTop: F2(setScrollTop),
       getScrollLeft: getScrollLeft,

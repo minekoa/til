@@ -26,6 +26,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Json
+import Json.Encode
 import Mouse
 import Time exposing (Time, second)
 import Task exposing (Task)
@@ -59,7 +60,6 @@ type alias Model =
 
     -- work
     , isPreventedDefaultKeyShortcut : Bool
-    , copyReq : Maybe String
     , vScrollReq : Maybe Int
     , hScrollReq : Maybe Int
     }
@@ -77,7 +77,6 @@ init id text =
           []                     -- event_log
 --          (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
-          Nothing                --copyReq
           Nothing                --scrollReq (V)
           Nothing                --scrollReq (H)
 
@@ -101,9 +100,6 @@ blinkBlock model =
     {model | blink = BlinkBlocked}
 
 
-requestCopyToClipboard : String -> Model -> Model
-requestCopyToClipboard s model =
-    {model | copyReq = Just s}
 
 
 ------------------------------------------------------------
@@ -113,8 +109,9 @@ requestCopyToClipboard s model =
 type Msg
     = IgnoreResult
     | PreventDefaultKeyShortcut Bool
-    | Copied Bool
     | Pasted String
+    | Copied String
+    | Cutted String
     | ScrolledV Bool
     | ScrolledH Bool
     | Input String
@@ -140,15 +137,23 @@ update msg model =
         PreventDefaultKeyShortcut b ->
             ( {model | isPreventedDefaultKeyShortcut = b}, Cmd.none)
 
-        Copied _ ->
-            ( {model | copyReq = Nothing}
-            , Task.perform (\_ -> IgnoreResult) (doFocus <| model.id ++ "-input"))
-
         Pasted s ->
             ( paste model (Buffer.nowCursorPos model.buffer) s
               |> eventLog "pasete" s
             , Cmd.none
             )
+
+        Copied s ->
+            ( model
+                  |> (\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m)
+                  |> eventLog "copied" s
+            , Cmd.none)
+
+        Cutted s ->
+            (  model
+                  |> (\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m)
+                  |> eventLog "cutted" s
+            , Cmd.none )
 
         ScrolledV _ ->
             ( {model | vScrollReq = Nothing }
@@ -182,9 +187,6 @@ update msg model =
             in
                 ( m
                 , Cmd.batch [ c
-                            , case m.copyReq of
-                                  Nothing -> Cmd.none
-                                  Just s  -> Task.perform Copied (copyToClipboard (model.id ++ "-clipboard-copy") s)
                             , case m.vScrollReq of
                                   Nothing -> Cmd.none
                                   Just n  -> Task.perform ScrolledV (setScrollTop (model.id ++ "-editor-frame") n )
@@ -234,7 +236,7 @@ update msg model =
             , if model.isPreventedDefaultKeyShortcut then
                   Cmd.none
               else
-                  Task.perform PreventDefaultKeyShortcut (elaborateInputAreaEventHandlers (model.id ++ "-input") (model.id ++ "-clipboard-paste"))
+                  Task.perform PreventDefaultKeyShortcut (elaborateInputAreaEventHandlers (model.id ++ "-input"))
             )
 
         FocusOut _ ->
@@ -314,10 +316,8 @@ keymapper (ctrl, alt, shift, keycode) =
                                                                                Nothing -> delete m (Buffer.nowCursorPos m.buffer)
                                                                                Just s  -> deleteRange m s 
                                                                     )  }   -- DEL
-
-                 , {ctrl=True , alt=False, shift=False, code= 67, f=(\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'C-c'
-                 , {ctrl=True , alt=False, shift=False, code= 88, f=(\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m) } -- 'C-x'
-                 -- C-v は、クリップボードと連携したいので、ブラウザのpasteイベントを発火させる、ので、ここでは何もしない
+                 -- note: C-c, C-x, C-v は、システムのクリップボードと連携したいので、
+                 --       ブラウザの ClipboardEvent (copy, cut, paste)を発火させるため、ここでは何もしない
 
                  , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
 
@@ -331,6 +331,8 @@ keymapper (ctrl, alt, shift, keycode) =
                                                                                Nothing -> delete m (Buffer.nowCursorPos m.buffer)
                                                                                Just s  -> deleteRange m s
                                                                     )  }    -- 'C-d'
+                 , {ctrl=False , alt=True, shift=False, code= 87, f=(\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'M-w'
+                 , {ctrl=True , alt=False, shift=False, code= 87, f=(\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m) } -- 'C-w'
                  , {ctrl=True , alt=False, shift=False, code= 77, f=(\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") }-- 'C-m'
                  , {ctrl=True , alt=False, shift=False, code= 89, f=(\m -> paste m (Buffer.nowCursorPos m.buffer) m.copyStore)} -- 'C-y'
                  ]
@@ -591,23 +593,23 @@ undo model =
 
 copy : Model -> Buffer.Range -> Model
 copy model selection =
+    -- note: sytem の clipboard  にはコピーされません
     let
         s = Buffer.readRange selection model.buffer
     in
         { model | copyStore = s }
-            |> requestCopyToClipboard s
             |> selectionClear
             |> blinkBlock
 
 cut : Model -> Buffer.Range -> Model
 cut model selection =
+    -- note: sytem の clipboard  にはコピーされません
     let
         s = Buffer.readRange selection model.buffer
     in
         { model | copyStore = s
                 , buffer = Buffer.deleteRange selection model.buffer
         }
-        |> requestCopyToClipboard s
         |> selectionClear
         |> blinkBlock
 
@@ -651,11 +653,7 @@ controller model =
                 , ("position", "absolute")
                 ]
         ]
-        [ textarea [ id <| model.id ++ "-clipboard-copy"
-                   , tabindex -1
-                   ] []
-        ]
-
+        [ ]
 
 presentation : Model -> Html Msg
 presentation model =
@@ -777,7 +775,13 @@ cursorLayer model =
                                 , onCompositionUpdate CompositionUpdate
                                 , onCompositionEnd CompositionEnd
                                 , onPasted Pasted
+                                , onCopied Copied
+                                , onCutted Cutted
                                 , value model.input_buffer
+                                , property "selecteddata" <| Json.Encode.string <|
+                                    case model.buffer.selection of
+                                        Nothing -> ""
+                                        Just sel -> Buffer.readRange sel model.buffer
                                 , style [ ("width", "1px"), ("border", "none"), ("padding", "0"), ("margin","0"), ("outline", "none")
                                         , ("overflow", "hidden"), ("opacity", "0")
                                         , ("resize", "none")
@@ -1011,6 +1015,15 @@ onPasted: (String -> msg) -> Attribute msg
 onPasted tagger =
     on "pasted" (Json.map tagger (Json.field "detail" Json.string))
 
+onCopied: (String -> msg) -> Attribute msg
+onCopied tagger =
+    on "copied" (Json.map tagger (Json.field "detail" Json.string))
+
+onCutted: (String -> msg) -> Attribute msg
+onCutted tagger =
+    on "cutted" (Json.map tagger (Json.field "detail" Json.string))
+
+
 
 ------------------------------------------------------------
 -- Native (Mice)
@@ -1022,13 +1035,9 @@ doFocus : String -> Task Never Bool
 doFocus id =
     Task.succeed (Native.Mice.doFocus id)
 
-copyToClipboard : String -> String -> Task Never Bool
-copyToClipboard id text =
-    Task.succeed (Native.Mice.copyToClipboard id text)
-
-elaborateInputAreaEventHandlers: String -> String -> Task Never Bool
-elaborateInputAreaEventHandlers input_area_id paste_area_id =
-    Task.succeed (Native.Mice.elaborateInputAreaEventHandlers input_area_id paste_area_id)
+elaborateInputAreaEventHandlers: String  -> Task Never Bool
+elaborateInputAreaEventHandlers input_area_id =
+    Task.succeed (Native.Mice.elaborateInputAreaEventHandlers input_area_id)
 
 setScrollTop : String -> Int -> Task Never Bool
 setScrollTop id pixels =
