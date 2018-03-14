@@ -57,6 +57,31 @@ var _minekoa$project$Native_Mice = function() {
             }
         });
 
+        input_area.addEventListener( "input", e => {
+            if (!input_area.enableComposer) {
+                input_area.value = "";
+            }
+        });
+
+        input_area.addEventListener( "compositionstart", e => {
+            input_area.enableComposer = true;
+        });
+
+        input_area.addEventListener( "compositionend", e => {
+            input_area.value = "";
+        });
+
+        input_area.addEventListener( "keypress", e => {
+
+            /* IME入力中にkeypress イベントがこないことを利用して IME入力モード(inputを反映するか否かのフラグ）を解除
+             *  ※ compositonEnd で解除してしまうと、firefoxとchromeの振る舞いの違いでハマる
+             *        chrome  :: keydown 229 ->                  -> compositionend s
+             *        firefox ::   (null)    -> compositionend s -> input s
+             */
+
+            input_area.enableComposer = false;
+        });
+
         input_area.addEventListener( "paste", e => {
             e.preventDefault();
 

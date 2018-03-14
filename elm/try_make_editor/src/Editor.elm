@@ -48,7 +48,6 @@ type alias Model =
     , copyStore : String
 
     -- frame
-    , input_buffer : String
     , enableComposer : Bool
     , compositionData : Maybe String --IMEで返還中の未確定文字
     , focus : Bool
@@ -69,7 +68,6 @@ init id text =
     Model id                     -- id
           (Buffer.init text)
           ""                     -- copyStore
-          ""                     -- input_buffer
           False Nothing          -- COMPOSER STATE
           False                  -- focus
           BlinkBlocked           -- blink
@@ -286,14 +284,11 @@ input: String -> Model -> (Model, Cmd Msg)
 input s model =
     case model.enableComposer of
         True ->
-            ( { model
-                  | input_buffer = s
-              }
+            ( model
               |> eventLog "input (ignored)" s
             , Cmd.none )
         False ->
             ( insert model (Buffer.nowCursorPos model.buffer) (String.right 1 s)
-                |> inputBufferClear
                 |> eventLog "input" (String.right 1 s)
             , Cmd.none)
 
@@ -372,7 +367,6 @@ compositionStart data model =
           | compositionData = Just data
           , enableComposer = True
       }
-      |> inputBufferClear -- 直前にenterでない確定をした場合向け
       |> blinkBlock
       |> eventLog "compositoinstart" data
     , Cmd.none
@@ -393,7 +387,6 @@ compositionEnd data model =
     --        それを無視する為 enable-conposerは立てたままにする (keypressイベントで解除する、そちらを参照)
     ( insert model (Buffer.nowCursorPos model.buffer) data
       |> compositionDataClear
-      |> inputBufferClear
       |> blinkBlock
       |> eventLog "compositionend" data
     , Cmd.none
@@ -409,10 +402,6 @@ eventLog ev data model =
         s = "(" ++ ev ++ ":" ++ data ++ ") "
     in
         { model | event_log = s :: model.event_log }
-
-inputBufferClear : Model -> Model
-inputBufferClear model =
-    { model | input_buffer = "" }
 
 composerDisable : Model -> Model
 composerDisable model =
@@ -777,7 +766,6 @@ cursorLayer model =
                                 , onPasted Pasted
                                 , onCopied Copied
                                 , onCutted Cutted
-                                , value model.input_buffer
                                 , property "selecteddata" <| Json.Encode.string <|
                                     case model.buffer.selection of
                                         Nothing -> ""
