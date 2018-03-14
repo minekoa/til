@@ -34,6 +34,7 @@ type Msg
     | Pasete
     | Undo
     | EditorMsg (Editor.Msg)
+    | SetEventlogEnable Bool
 
 init : (Model, Cmd Msg)
 init =
@@ -112,7 +113,23 @@ update msg model =
               }
             , Cmd.none)
 
+        SetEventlogEnable True ->
+            let
+                em = model.editor
+            in
+                ( { model
+                      | editor = {em| event_log = Just []}
+                  }
+                , Cmd.none)
 
+        SetEventlogEnable False ->
+            let
+                em = model.editor
+            in
+                ( { model
+                      | editor = {em| event_log = Nothing}
+                  }
+                , Cmd.none)
 
         -- ScenarioPage >> List
         EditorMsg msg ->
@@ -194,7 +211,7 @@ controlPane model =
            , input [ type_ "file", id "file_open" ][]
            ]
 
-debugPane : Model -> Html msg
+debugPane : Model -> Html Msg
 debugPane model =
     div [ id "debug-pane"
         , class "hbox"
@@ -237,20 +254,42 @@ debugPane model =
                                 , ("min-height", "2em")
                                 , ("display", "flex"), ("flex-direction", "row")
                                 ]
-                        ] [ div [ style [ ("background-color","gray"), ("color", "white")] ] [text "clipboard:"]
-                          , div [ style [ ("overflow","auto"), ("width", "100%") ]
-                                ] ( List.map
-                                          (λ ln-> div [ style [("border-bottom", "1px dotted gray"), ("height", "1em")] ] [ text ln ] )
-                                          (String.lines model.editor.copyStore)
-                                  )
-                          ]
+                        ]
+                        [ div [ style [ ("background-color","gray"), ("color", "white"), ("width", "10ex")] ] [text "clipboard:"]
+                        , div [ style [ ("overflow","auto"), ("width", "100%") ]
+                              ] ( List.map
+                                      (λ ln-> div [ style [("border-bottom", "1px dotted gray"), ("height", "1em")] ] [ text ln ] )
+                                      (String.lines model.editor.copyStore)
+                                )
+                        ]
                   , div [ id "debug-pane-eventlog"
-                        , style [ ("overflow","scroll")
-                                , ("width", "calc( 100% - 2px )")
-                                , ("border", "1px solid black")
-                                , ("flex-grow", "8")
+                        , class "hbox"
+                        , style [ ("flex-grow", "8")
+                                , ("width", "100%")
+                                , ("min-height", "2em")
+                                , ("display", "flex"), ("flex-direction", "row")
                                 ]
-                        ] ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) model.editor.event_log )
+                        ]
+                        [ div [ style [ ("background-color","gray"), ("color", "white"), ("width", "10ex")] ]
+                              [ div [] [text "eventlog:"]
+                              , div
+                                    [ onClick (SetEventlogEnable (model.editor.event_log == Nothing))
+                                    , style [ ("border", "1px solid white")
+                                            , ("opacity", if (model.editor.event_log == Nothing) then "0.5" else "1.0" )
+                                            , ("margin", "1ex")
+                                            , ("text-align", "center")
+                                            ]
+                                    ]
+                                    [text <| if (model.editor.event_log == Nothing) then "OFF" else "ON"]
+                              ]
+                        , div [ style [ ("overflow","scroll")
+                                      , ("width", "calc( 100% - 2px )")
+                                      , ("border", "1px solid black")
+                                      , ("flex-grow", "8")
+                                      ]
+                              ]
+                              ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) (Maybe.withDefault [] model.editor.event_log) )
+                        ]
                   ]
           ]
 

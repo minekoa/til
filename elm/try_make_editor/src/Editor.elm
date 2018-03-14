@@ -54,7 +54,7 @@ type alias Model =
     , blink : BlinkState
 
     -- for debug
-    , event_log : List String
+    , event_log : Maybe (List String)
 --    , xy : Mouse.Position
 
     -- work
@@ -72,7 +72,7 @@ init id text =
           False                  -- focus
           BlinkBlocked           -- blink
 
-          []                     -- event_log
+          Nothing                -- event_log
 --          (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
           Nothing                --scrollReq (V)
@@ -401,7 +401,7 @@ eventLog ev data model =
     let
         s = "(" ++ ev ++ ":" ++ data ++ ") "
     in
-        { model | event_log = s :: model.event_log }
+        { model | event_log = Maybe.andThen (\logs -> Just (s :: logs)) model.event_log }
 
 composerDisable : Model -> Model
 composerDisable model =
