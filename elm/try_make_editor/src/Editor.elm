@@ -782,7 +782,7 @@ cursorLayer model =
                                     case model.buffer.selection of
                                         Nothing -> ""
                                         Just sel -> Buffer.readRange sel model.buffer
-                                , style [ ("width", "1px"), ("border", "none"), ("padding", "0"), ("margin","0"), ("outline", "none")
+                                , style [ ("border", "none"), ("padding", "0"), ("margin","0"), ("outline", "none")
                                         , ("overflow", "hidden"), ("opacity", "0")
                                         , ("resize", "none")
                                         , ("position", "absolute") -- textarea のサイズは（入力を取れる状態を維持したままでは）0にできないので、カーソル位置がずれぬよう、浮かせてあげる
