@@ -7,6 +7,7 @@ module Editor.Buffer exposing ( Model
                               , line
                               , Range
                               , readRange
+                              , selectedString
 
                               -- history
                               , EditCommand(Cmd_Insert, Cmd_Backspace, Cmd_Delete)
@@ -118,6 +119,11 @@ readRange sel model =
                     ls = model.contents |> List.drop ((Tuple.first bpos) + 1) |> List.take (lcnt - 1)
                 in
                     String.join "\n" ((bl :: ls) ++ [el])
+
+selectedString : Model -> Maybe String
+selectedString model =
+    Maybe.andThen (\sel-> readRange sel model |> Just ) model.selection 
+
 
 ------------------------------------------------------------
 -- History

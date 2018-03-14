@@ -75,7 +75,7 @@ var _minekoa$project$Native_Mice = function() {
 
             /* IME入力中にkeypress イベントがこないことを利用して IME入力モード(inputを反映するか否かのフラグ）を解除
              *  ※ compositonEnd で解除してしまうと、firefoxとchromeの振る舞いの違いでハマる
-             *        chrome  :: keydown 229 ->                  -> compositionend s
+             *        chrome  :: keydown 229 -> compositionend s
              *        firefox ::   (null)    -> compositionend s -> input s
              */
 

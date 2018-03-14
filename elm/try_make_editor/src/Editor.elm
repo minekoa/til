@@ -55,7 +55,6 @@ type alias Model =
 
     -- for debug
     , event_log : Maybe (List String)
---    , xy : Mouse.Position
 
     -- work
     , isPreventedDefaultKeyShortcut : Bool
@@ -73,7 +72,6 @@ init id text =
           BlinkBlocked           -- blink
 
           Nothing                -- event_log
---          (Mouse.Position 0 0)
           False                  --preventedKeyShortcut
           Nothing                --scrollReq (V)
           Nothing                --scrollReq (H)
@@ -179,9 +177,9 @@ update msg model =
                             ]
                 )
 
-        KeyDown code ->
+        KeyDown keyevent ->
             let 
-                (m, c) = keyDown code model
+                (m, c) = keyDown keyevent model
             in
                 ( m
                 , Cmd.batch [ c
@@ -195,14 +193,7 @@ update msg model =
                 )
  
         KeyPress code ->
-            -- IME入力中にkeypress イベントがこないことを利用して IME入力モード(inputを反映するか否かのフラグ）を解除
-            -- ※ compositonEnd で解除してしまうと、firefoxとchromeの振る舞いの違いでハマる
-            --        chrome  :: keydown 229 -> input s          -> compositionend s
-            --        firefox ::   (null)    -> compositionend s -> input s
-            ( model
-                |> composerDisable
-                |> eventLog "keypress" (toString code)
-            , Cmd.none )
+            keyPress code model
 
         CompositionStart data ->
             compositionStart data model
@@ -263,7 +254,6 @@ update msg model =
 
 
             in
---                ( { model | buffer = b2, xy = xy}
                 ( { model | buffer = b2 }
                   |> eventLog "dragstart" ("pos=" ++ (toString xy.x) ++ "," ++ (toString xy.y)
                                                ++ "; offsetx=" ++ (toString (xy.x - rect.left))
@@ -360,6 +350,18 @@ keyDown e model =
     ( keymapper (e.ctrlKey, e.altKey, e.shiftKey, e.keyCode) model
       |> eventLog "keydown" (keyboarEvent_toString e)
     , Cmd.none )
+
+keyPress : Int -> Model -> (Model, Cmd Msg)
+keyPress code model =
+    -- IME入力中にkeypress イベントがこないことを利用して IME入力モード(inputを反映するか否かのフラグ）を解除
+    -- ※ compositonEnd で解除してしまうと、firefoxとchromeの振る舞いの違いでハマる
+    --        chrome  :: keydown 229 -> compositionend s
+    --        firefox ::   (null)    -> compositionend s -> input s
+    ( model
+        |> composerDisable
+        |> eventLog "keypress" (toString code)
+    , Cmd.none
+    )
 
 compositionStart : String -> Model -> (Model, Cmd Msg)
 compositionStart data model =
@@ -631,18 +633,8 @@ view model =
               , style [ ( "position", "relative") ]
               ]
               [ presentation model 
-              , controller model
               ]
         ]
-
-controller : Model -> Html Msg
-controller model =
-    div [ style [ ("width", "1px"), ("height", "1px")
-                , ("overflow", "hidden")
-                , ("position", "absolute")
-                ]
-        ]
-        [ ]
 
 presentation : Model -> Html Msg
 presentation model =
@@ -653,7 +645,6 @@ presentation model =
         , onFocusIn FocusIn
         , onFocusOut FocusOut
         , onClick SetFocus
---        , contenteditable True
         ]
         [ lineNumArea model
         , codeArea model
@@ -708,7 +699,6 @@ codeLayer model =
                                       , ("width", "100%")
                                       , ("text-wrap", "none")
                                       , ("white-space", "pre")
---                                      , ("display" , "inline-flex")
                                       ]
                               , onMouseDown (DragStart n)
                               ]
@@ -722,7 +712,7 @@ codeLayer model =
                                              , ("white-space", "pre")
                                              ]
                                      ]
-                                    [ text <| String.dropLeft cursor.column ln]                                  
+                                     [ text <| String.dropLeft cursor.column ln]                                  
                               ]
                       else
                           div [ class "line"
@@ -766,17 +756,14 @@ cursorLayer model =
                                 , onPasted Pasted
                                 , onCopied Copied
                                 , onCutted Cutted
-                                , property "selecteddata" <| Json.Encode.string <|
-                                    case model.buffer.selection of
-                                        Nothing -> ""
-                                        Just sel -> Buffer.readRange sel model.buffer
+                                , selecteddata <| Buffer.selectedString model.buffer
+                                , spellcheck False
+                                , wrap "off"
                                 , style [ ("border", "none"), ("padding", "0"), ("margin","0"), ("outline", "none")
                                         , ("overflow", "hidden"), ("opacity", "0")
                                         , ("resize", "none")
                                         , ("position", "absolute") -- textarea のサイズは（入力を取れる状態を維持したままでは）0にできないので、カーソル位置がずれぬよう、浮かせてあげる
                                         ]
-                                , spellcheck False
-                                , wrap "off"
                                 ]
                            []
                      , span [ style [("visibility", "hidden") ]] [compositionPreview model.compositionData]
@@ -916,7 +903,7 @@ subscriptions model =
 
 
 ------------------------------------------------------------
--- html events (extra)
+-- html events / attributes (extra)
 ------------------------------------------------------------
 
 -- Keyboard Event
@@ -1011,6 +998,15 @@ onCutted: (String -> msg) -> Attribute msg
 onCutted tagger =
     on "cutted" (Json.map tagger (Json.field "detail" Json.string))
 
+
+-- CustomAttributes
+
+selecteddata : Maybe String -> Attribute msg
+selecteddata selected_str =
+    selected_str
+        |> Maybe.withDefault ""
+        |> Json.Encode.string
+        |> property "selecteddata"
 
 
 ------------------------------------------------------------
