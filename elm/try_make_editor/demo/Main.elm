@@ -19,6 +19,11 @@ main =
 type alias Model =
     { editor : Editor.Model
     , raw_buf : String
+
+    , bgColor : { index : String, list : List String }
+    , fgColor : { index : String, list : List String }
+    , fontFamily : { index : String, list : List String }
+    , fontSize : { index : String, list : List String }
     }
 
 type Msg
@@ -34,6 +39,10 @@ type Msg
     | Undo
     | EditorMsg (Editor.Msg)
     | SetEventlogEnable Bool
+    | ChangeBGColor String
+    | ChangeFGColor String
+    | ChangeFontFamily String
+    | ChangeFontSize String
 
 init : (Model, Cmd Msg)
 init =
@@ -41,8 +50,17 @@ init =
         (bm, bc) = Editor.init "editor-sample1" ""
     in
         ( Model bm ""
+              { index = "inherit", list = ["inherit", "black", "white", "linen", "dimgray", "whitesmoke", "midnightblue", "darkolivegreen", "darkslategray", "lavender"] }
+              { index = "inherit", list = ["inherit", "black", "white", "aqua", "coral", "midnightblue", "darkslategray", "lavender", "palevioletred", "rosybrown"] }
+              { index = "inherit", list = ["inherit", "cursive", "fantasy", "monospace", "sans-serif", "serif"] }
+              { index = "inherit", list = ["inherit", "0.5em", "1em", "1.5em", "2em", "3em", "5em", "7em", "10em"] }
         , Cmd.map EditorMsg bc
         )
+
+
+-- 
+
+
 
 updateMap: Model -> (Editor.Model, Cmd Editor.Msg) -> (Model, Cmd Msg)
 updateMap model (em, ec) =
@@ -101,6 +119,38 @@ update msg model =
                   }
                 , Cmd.none)
 
+        ChangeBGColor s ->
+            ( { model
+                  | bgColor = { index = s
+                              , list = model.bgColor.list
+                              }
+              }
+            , Cmd.none )
+
+        ChangeFGColor s ->
+            ( { model
+                  | fgColor = { index = s
+                              , list = model.fgColor.list
+                              }
+              }
+            , Cmd.none )
+
+        ChangeFontFamily s ->
+            ( { model
+                  | fontFamily = { index = s
+                                 , list = model.fontFamily.list
+                                 }
+              }
+            , Cmd.none )
+        ChangeFontSize s ->
+            ( { model
+                  | fontSize = { index = s
+                               , list = model.fontSize.list
+                               }
+              }
+            , Cmd.none )
+
+
         -- ScenarioPage >> List
         EditorMsg msg ->
             let
@@ -122,9 +172,14 @@ view model =
                 ]
         ]
         [ h1 [] [text "TextEditor Sample"]
+        , styleConfig model
         , div [ style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                       , ("overflow","hidden")
                       , ("flex-grow", "8")
+                      , ("color", model.fgColor.index)
+                      , ("background-color", model.bgColor.index)
+                      , ("font-family", model.fontFamily.index)
+                      , ("font-size", model.fontSize.index)
                       ]
               ]
               [ Html.map EditorMsg (Editor.view model.editor) ]
@@ -132,6 +187,36 @@ view model =
         , controlPane model
         , debugPane model
         ]
+
+styleConfig : Model -> Html Msg
+styleConfig model =
+    div [ style [ ("display", "flex"), ("flex-direction", "row"), ("justify-content", "space-between"), ("align-items", "center")
+                , ("height", "2em"), ("flex-grow", "2"), ("background-color", "lightsteelblue"), ("color", "snow")
+                ]
+        ]
+        [ div [] [ span [] [text "background-color: "]
+                 , selectList model.bgColor.index model.bgColor.list ChangeBGColor
+                 ]
+        , div [] [ span [] [text "color: "]
+                 , selectList model.fgColor.index model.fgColor.list ChangeFGColor
+                 ]
+        , div [] [ span [] [text "font-family: "]
+                 , selectList model.fontFamily.index model.fontFamily.list ChangeFontFamily
+                 ]
+        , div [] [ span [] [text "font-size: "]
+                 , selectList model.fontSize.index model.fontSize.list ChangeFontSize
+                 ]
+        ]
+
+selectList: String -> List String -> (String -> msg) -> Html msg
+selectList idx values tagger =
+    select [on "change" (Json.map tagger (Json.at ["target","value"] Json.string))]
+        ( List.map
+              (\ v -> option
+                   [ value v , selected (idx == v)]
+                   [ text v ]
+              ) values
+        )
 
 modeline : Model -> Html msg
 modeline model =
@@ -268,3 +353,4 @@ debugPane model =
         ]
 
 
+ 
