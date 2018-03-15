@@ -44,69 +44,44 @@ init =
         , Cmd.map EditorMsg bc
         )
 
+updateMap: Model -> (Editor.Model, Cmd Editor.Msg) -> (Model, Cmd Msg)
+updateMap model (em, ec) =
+    ( {model | editor = em}
+    , Cmd.map EditorMsg ec)
+
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         MoveForward ->
-            ( { model
-                  | editor = Editor.moveForward model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.moveForward model.editor)
+
         MoveBackword ->
-            ( { model
-                  | editor = Editor.moveBackward model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.moveBackward model.editor)
+
         MovePrevios ->
-            ( { model
-                  | editor = Editor.movePrevios model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.movePrevios model.editor)
+
         MoveNext ->
-            ( { model
-                  | editor = Editor.moveNext model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.moveNext model.editor)
 
         Backspace ->
-            ( { model
-                  | editor = Editor.backspace model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.backspace model.editor)
 
         Delete ->
-            ( { model
-                  | editor =  Editor.delete model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.delete model.editor)
 
         Copy ->
-            ( { model
-                  | editor = model.editor.buffer.selection
-                                 |> Maybe.andThen (\sel -> Just <| Editor.copy model.editor sel)
-                                 |> Maybe.withDefault model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.copy model.editor)
 
         Cut ->
-            ( { model
-                  | editor = model.editor.buffer.selection
-                                 |> Maybe.andThen (\sel -> Just <| Editor.cut model.editor sel)
-                                 |> Maybe.withDefault model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.cut model.editor)
 
         Pasete ->
-            ( { model
-                  | editor = Editor.paste model.editor (Buffer.nowCursorPos model.editor.buffer) model.editor.copyStore
-              }
-            , Cmd.none)
+            updateMap model (Editor.paste model.editor.copyStore model.editor)
+
         Undo ->
-            ( { model
-                  | editor = Editor.undo model.editor
-              }
-            , Cmd.none)
+            updateMap model (Editor.undo model.editor)
 
         SetEventlogEnable True ->
             let
