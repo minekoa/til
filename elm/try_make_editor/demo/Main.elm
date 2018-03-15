@@ -22,8 +22,7 @@ type alias Model =
     }
 
 type Msg
-    = RawInput String
-    | MoveForward
+    = MoveForward
     | MoveBackword
     | MovePrevios
     | MoveNext
@@ -38,19 +37,22 @@ type Msg
 
 init : (Model, Cmd Msg)
 init =
-    ( Model (Editor.init "editor-sample1" "") ""
-    , Cmd.none
-    )
+    let
+        (bm, bc) = Editor.init "editor-sample1" ""
+    in
+        ( Model bm ""
+        , Cmd.map EditorMsg bc
+        )
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        RawInput txt ->
-            ( { model
-                  | editor = Editor.init model.editor.id txt
-              }
-            , Cmd.none)
+--        RawInput txt ->
+--            ( { model
+--                  | editor = Editor.init model.editor.id txt
+--              }
+--            , Cmd.none)
         MoveForward ->
             ( { model
                   | editor = Editor.moveForward model.editor

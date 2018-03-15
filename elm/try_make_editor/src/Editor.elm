@@ -57,24 +57,25 @@ type alias Model =
     , event_log : Maybe (List String)
 
     -- work
-    , isPreventedDefaultKeyShortcut : Bool
     , vScrollReq : Maybe Int
     , hScrollReq : Maybe Int
     }
 
-init : String -> String -> Model
+init : String -> String -> (Model, Cmd Msg)
 init id text =
-    Model id                     -- id
-          (Buffer.init text)
-          ""                     -- copyStore
-          False Nothing          -- COMPOSER STATE
-          False                  -- focus
-          BlinkBlocked           -- blink
+    ( Model id                     -- id
+            (Buffer.init text)
+            ""                     -- copyStore
+            False Nothing          -- COMPOSER STATE
+            False                  -- focus
+            BlinkBlocked           -- blink
 
-          Nothing                -- event_log
-          False                  --preventedKeyShortcut
-          Nothing                --scrollReq (V)
-          Nothing                --scrollReq (H)
+            Nothing                -- event_log
+
+            Nothing                --scrollReq (V)
+            Nothing                --scrollReq (H)
+    , Task.perform (\_ -> IgnoreResult) (elaborateInputAreaEventHandlers (id ++ "-input"))
+    )
 
 -- frame > cursor blink
 
@@ -104,7 +105,6 @@ blinkBlock model =
 
 type Msg
     = IgnoreResult
-    | PreventDefaultKeyShortcut Bool
     | Pasted String
     | Copied String
     | Cutted String
@@ -129,9 +129,6 @@ update msg model =
 
         IgnoreResult ->
             (model, Cmd.none)
-
-        PreventDefaultKeyShortcut b ->
-            ( {model | isPreventedDefaultKeyShortcut = b}, Cmd.none)
 
         Pasted s ->
             ( paste model (Buffer.nowCursorPos model.buffer) s
@@ -219,14 +216,8 @@ update msg model =
         FocusIn _ ->
             ( {model
                   | focus = True
-                  , isPreventedDefaultKeyShortcut = True
               }
-
-            , if model.isPreventedDefaultKeyShortcut then
-                  Cmd.none
-              else
-                  Task.perform PreventDefaultKeyShortcut (elaborateInputAreaEventHandlers (model.id ++ "-input"))
-            )
+            , Cmd.none)
 
         FocusOut _ ->
             ( {model|focus = False}

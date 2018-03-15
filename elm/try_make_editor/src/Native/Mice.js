@@ -33,14 +33,14 @@ var _minekoa$project$Native_Mice = function() {
     }
 
     function elaborateInputAreaEventHandlers(id_input_area) {
-        const input_area = document.getElementById(id_input_area);
-
-        if (input_area == null) {
-            return false;
+        const body = document.body;
+        if (body === null) {
+            console.log("Fatal Error: document.body.addEventlisthener. 'body' is null");
         }
-        console.log("add event listener");
 
-        input_area.addEventListener( "keydown", e => {
+        body.addEventListener( "keydown", e => {
+            if (e.target.id != id_input_area) { return true;}
+
             if (e.ctrlKey && (e.keyCode == 86 || e.keyCode == 67 || e.keyCode == 88)) { /* C-v : pasteイベントは生かしておきたい */
                 ;
             }
@@ -57,21 +57,32 @@ var _minekoa$project$Native_Mice = function() {
             }
         });
 
-        input_area.addEventListener( "input", e => {
+        body.addEventListener( "input", e => {
+            if (e.target.id != id_input_area) { return true;}
+            const input_area = e.target;
+
             if (!input_area.enableComposer) {
                 input_area.value = "";
             }
         });
 
-        input_area.addEventListener( "compositionstart", e => {
+        body.addEventListener( "compositionstart", e => {
+            if (e.target.id != id_input_area) { return true;}
+            const input_area = e.target;
+
             input_area.enableComposer = true;
         });
 
-        input_area.addEventListener( "compositionend", e => {
+        body.addEventListener( "compositionend", e => {
+            if (e.target.id != id_input_area) { return true;}
+            const input_area = e.target;
+
             input_area.value = "";
         });
 
-        input_area.addEventListener( "keypress", e => {
+        body.addEventListener( "keypress", e => {
+            if (e.target.id != id_input_area) { return true;}
+            const input_area = e.target;
 
             /* IME入力中にkeypress イベントがこないことを利用して IME入力モード(inputを反映するか否かのフラグ）を解除
              *  ※ compositonEnd で解除してしまうと、firefoxとchromeの振る舞いの違いでハマる
@@ -82,12 +93,11 @@ var _minekoa$project$Native_Mice = function() {
             input_area.enableComposer = false;
         });
 
-        input_area.addEventListener( "paste", e => {
+        body.addEventListener( "paste", e => {
             e.preventDefault();
 
             const data_transfer = (e.clipboardData) || (window.clipboardData);
             const str = data_transfer.getData("text/plain");
-            console.log("paste");
 
             const evt = new CustomEvent("pasted", { "bubbles": true,
                                                     "cancelable": true,
@@ -97,12 +107,14 @@ var _minekoa$project$Native_Mice = function() {
             input_area.dispatchEvent(evt);
         });
 
-        input_area.addEventListener( "copy", e => {
+        body.addEventListener( "copy", e => {
+            if (e.target.id != id_input_area) { return true;}
+            const input_area = e.target;
+
             e.preventDefault();
 
             const str = input_area.selecteddata
             e.clipboardData.setData('text/plain', str);
-            console.log("copy");
 
             const evt = new CustomEvent("copied", { "bubbles": true,
                                                     "cancelable": true,
@@ -112,12 +124,14 @@ var _minekoa$project$Native_Mice = function() {
             input_area.dispatchEvent(evt);
         });
 
-        input_area.addEventListener( "cut", e => {
+        body.addEventListener( "cut", e => {
+            if (e.target.id != id_input_area) { return true;}
+            const input_area = e.target;
+
             e.preventDefault();
 
             const str = input_area.selecteddata
             e.clipboardData.setData('text/plain', str);
-            console.log("cut");
 
             const evt = new CustomEvent("cutted", { "bubbles": true,
                                                     "cancelable": true,
