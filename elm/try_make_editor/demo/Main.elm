@@ -157,7 +157,7 @@ modeline model =
                     ]
             ]
             [ text <| toCursorString model.editor.buffer.cursor
-            , text <| toIMEString model.editor.compositionData
+            , text <| toIMEString model.editor.compositionPreview
             , text <| toSelectionString model.editor.buffer.selection
             ]
 

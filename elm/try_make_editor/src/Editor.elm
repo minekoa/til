@@ -46,7 +46,7 @@ type alias Model =
 
     -- frame
     , enableComposer : Bool
-    , compositionData : Maybe String --IMEで返還中の未確定文字
+    , compositionPreview : Maybe String --IMEで返還中の未確定文字
     , focus : Bool
     , blink : BlinkState
 
@@ -151,7 +151,7 @@ update msg model =
 
         FocusIn _ ->
             ( { model | focus = True }
-            , Task.perform (\_ -> IgnoreResult) (elaborateInputArea (model.id ++ "-input")) )
+            , Task.perform (\_ -> IgnoreResult) (elaborateInputArea (inputAreaID model)) )
 
         FocusOut _ ->
             ( { model|focus = False }
@@ -160,17 +160,17 @@ update msg model =
         SetFocus ->
             ( model
                 |> eventLog "setfocus" ""
-            , Task.perform (\_ -> IgnoreResult) (doFocus <| model.id ++ "-input") )
+            , Task.perform (\_ -> IgnoreResult) (doFocus <| inputAreaID model) )
 
         DragStart row xy ->
             let
-                calc_w  = calcTextWidth (model.id ++ "-ruler")
+                calc_w  = calcTextWidth (rulerID model)
                 calc_col = (\ ln c x ->
                               if (calc_w (String.left c ln)) > x || String.length ln < c  then c - 1
                               else calc_col ln (c + 1)  x)
 
                 ln = Buffer.line row model.buffer.contents |> Maybe.withDefault ""
-                rect = getBoundingClientRect (model.id ++ "-codeLayer")
+                rect = getBoundingClientRect (codeLayerID model)
 
                 col = (calc_col ln 0 (xy.x - rect.left))
 
@@ -186,7 +186,7 @@ update msg model =
                                                ++ "; calced_col=" ++ (toString col)
                                           )
                   |> blinkBlock
-                , Task.perform (\_ -> IgnoreResult) (doFocus <| model.id ++ "-input") -- firefox 限定で、たまーに、SetFocus が来ないことがあるので、ここでもやっとく。
+                , Task.perform (\_ -> IgnoreResult) (doFocus <| inputAreaID model) -- firefox 限定で、たまーに、SetFocus が来ないことがあるので、ここでもやっとく。
                 )
 
         Tick new_time ->
@@ -283,14 +283,12 @@ keyPress code model =
 
 compositionStart : String -> Model -> (Model, Cmd Msg)
 compositionStart data model =
+    -- note: この data は入力された文字列 **ではない**
     ( { model
-          | compositionData = Just data
-          , enableComposer = True
+          | buffer = buffer_delete_selection model.buffer
+          , compositionPreview = Just ""
       }
-      |> ( \m -> case model.buffer.selection of
-                     Just s  -> { m | buffer = m.buffer |> Buffer.deleteRange s |> Buffer.selectionClear }
-                     Nothing -> m
-         )
+      |> composerEnable ""
       |> blinkBlock
       |> eventLog "compositoinstart" data
     , Cmd.none
@@ -298,7 +296,7 @@ compositionStart data model =
 
 compositionUpdate : String -> Model -> (Model, Cmd Msg)
 compositionUpdate data model =
-    ( { model | compositionData = Just data }
+    ( { model | compositionPreview = Just data }
       |> blinkBlock
       |> eventLog "compositionupdate" data
     , Cmd.none
@@ -309,15 +307,13 @@ compositionEnd data model =
     -- note: 変換プレビューのクリアはするが、
     --        firefox ではこの後 input イベントがくるので、
     --        それを無視する為 enable-conposerは立てたままにする (keypressイベントで解除する、そちらを参照)
-    let
-        (m, c) = insert data model
-    in
-    ( m
-      |> compositionDataClear
-      |> blinkBlock
-      |> eventLog "compositionend" data
-    , c
-    )
+    { model
+        | buffer = buffer_insert data model.buffer
+        , compositionPreview = Nothing
+    }
+        |> blinkBlock
+        |> eventLog "compositionend" data
+        |> withEnsureVisibleCmd
 
 ------------------------------------------------------------
 -- control state update
@@ -330,17 +326,18 @@ eventLog ev data model =
     in
         { model | event_log = Maybe.andThen (\logs -> Just (s :: logs)) model.event_log }
 
+composerEnable : String -> Model -> Model
+composerEnable data model =
+    { model
+        | compositionPreview = Just data
+        , enableComposer = True
+    }
+
 composerDisable : Model -> Model
 composerDisable model =
     { model
-        | compositionData = Nothing
+        | compositionPreview = Nothing
         , enableComposer = False
-    }
-
-compositionDataClear : Model -> Model
-compositionDataClear model =                       
-    { model
-        | compositionData = Nothing
     }
 
 ------------------------------------------------------------
@@ -358,20 +355,20 @@ ensureVisible model tagger =
     Cmd.batch
         [ calcVScrollPos model
               |> Maybe.andThen
-                  (\n -> Just <| Task.perform tagger (setScrollTop (model.id ++ "-editor-frame") n))
+                  (\n -> Just <| Task.perform tagger (setScrollTop (frameID model) n))
               |> Maybe.withDefault Cmd.none
         , calcHScrollPos model
               |> Maybe.andThen
-                  (\n -> Just <| Task.perform tagger (setScrollLeft (model.id ++ "-editor-frame") n))
+                  (\n -> Just <| Task.perform tagger (setScrollLeft (frameID model) n))
               |> Maybe.withDefault Cmd.none
         ]
 
 calcVScrollPos : Model -> Maybe Int
 calcVScrollPos model =
     let
-        frameRect  = getBoundingClientRect <| model.id ++ "-editor-frame"
-        cursorRect = getBoundingClientRect <| model.id ++ "-cursor"
-        scrtop = getScrollTop (model.id ++ "-editor-frame")
+        frameRect  = getBoundingClientRect <| frameID model
+        cursorRect = getBoundingClientRect <| cursorID model
+        scrtop = getScrollTop (frameID model)
 
         margin = cursorRect.height * 3
     in
@@ -386,9 +383,9 @@ calcVScrollPos model =
 calcHScrollPos : Model -> Maybe Int
 calcHScrollPos model =
     let
-        frameRect  = getBoundingClientRect <| model.id ++ "-editor-frame"
-        cursorRect = getBoundingClientRect <| model.id ++ "-cursor"
-        scrleft    = getScrollLeft (model.id ++ "-editor-frame")
+        frameRect  = getBoundingClientRect <| frameID model
+        cursorRect = getBoundingClientRect <| cursorID model
+        scrleft    = getScrollLeft (frameID model)
 
         margin = cursorRect.height * 3
     in
@@ -503,6 +500,15 @@ buffer_delete bufmodel =
                 |> Buffer.deleteRange s
                 |> Buffer.selectionClear
 
+buffer_delete_selection : Buffer.Model -> Buffer.Model
+buffer_delete_selection bufmodel =
+    case bufmodel.selection of
+        Nothing ->
+            bufmodel
+        Just s  ->
+            bufmodel
+                |> Buffer.deleteRange s
+                |> Buffer.selectionClear
 
 -- API
 
@@ -637,13 +643,43 @@ pastePos model (row, col) text =
     |> blinkBlock
     |> withEnsureVisibleCmd
 
+
+------------------------------------------------------------
+-- id gen
+------------------------------------------------------------
+
+frameID : Model -> String
+frameID model =
+    model.id ++ "-editor-frame"
+
+sceneID : Model -> String
+sceneID model =
+    model.id ++ "-editor-scene"
+
+codeLayerID : Model -> String
+codeLayerID model =
+    model.id ++ "-editor-codeLayer"
+
+rulerID : Model -> String
+rulerID model =
+    model.id ++ "-editor-ruler"
+
+cursorID : Model -> String
+cursorID model =
+    model.id ++ "-editor-cursor"
+
+inputAreaID : Model -> String
+inputAreaID model =
+    model.id ++ "-editor-input"
+
+
 ------------------------------------------------------------
 -- View
 ------------------------------------------------------------
 
 view : Model -> Html Msg
 view model =
-    div [ id (model.id ++ "-editor-frame")
+    div [ id <| frameID model
         , style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                 , ("overflow","auto")
                 , ( "position", "relative")
@@ -652,7 +688,7 @@ view model =
                 , ("-moz-user-select", "none")
                 ]
         ]
-        [ div [ id (model.id ++ "-editor-scene")
+        [ div [ id <| sceneID model
               , class "editor-scene"
               , style [ ( "position", "relative") ]
               ]
@@ -697,7 +733,7 @@ codeArea model =
                 , ("width", "100%")
                 ]
         ]
-        [ ruler (model.id ++ "-ruler")
+        [ ruler <| rulerID model
         , cursorLayer model
         , markerLayer model
         , codeLayer model
@@ -709,7 +745,7 @@ codeLayer model =
         contents = model.buffer.contents
         cursor = model.buffer.cursor
     in
-        div [ id (model.id ++ "-codeLayer")
+        div [ id <| codeLayerID model
             , class "code-layer"
             , style [ ("margin", "0"), ("padding", "0"), ("border", "none")
                     , ("width", "100%")
@@ -731,7 +767,7 @@ codeLayer model =
                                              ]
                                      ]
                                     [ text <| String.left cursor.column ln]
-                              , compositionPreview model.compositionData
+                              , compositionPreview model.compositionPreview
                               , span [ style [ ("position", "relative")
                                              , ("white-space", "pre")
                                              ]
@@ -749,10 +785,6 @@ codeLayer model =
 
 cursorLayer : Model -> Html Msg
 cursorLayer model =
-    {- 作戦2, [パディング用要素、本物の文字を入れ、hiddenにする][cursol]
-       思いついたのでやってみたらうまく行った
-       けど、みんなこれをやってないの、なにか落とし穴あるからなのかな？
-    -}
     div [ class "cursor-layer"
         , style [("position", "absolute")]
         ]
@@ -770,7 +802,7 @@ cursorLayer model =
                [ pad model
                , div
                      [ style [("position", "relative"), ("display" , "inline-flex")] ]
-                     [ textarea [ id <| model.id ++ "-input"
+                     [ textarea [ id <| inputAreaID model
                                 , onInput Input
                                 , onKeyDown KeyDown
                                 , onKeyPress KeyPress
@@ -786,11 +818,11 @@ cursorLayer model =
                                 , style [ ("border", "none"), ("padding", "0"), ("margin","0"), ("outline", "none")
                                         , ("overflow", "hidden"), ("opacity", "0")
                                         , ("resize", "none")
-                                        , ("position", "absolute") -- textarea のサイズは（入力を取れる状態を維持したままでは）0にできないので、カーソル位置がずれぬよう、浮かせてあげる
+                                        , ("position", "absolute")
                                         ]
                                 ]
                            []
-                     , span [ style [("visibility", "hidden") ]] [compositionPreview model.compositionData]
+                     , span [ style [("visibility", "hidden") ]] [compositionPreview model.compositionPreview]
                      , cursorView model
                      ]
                ]
@@ -912,7 +944,7 @@ cursorView model =
                 , ("height", "1em")
                 , ("width", "3px")
                 ]
-         , id <| model.id ++ "-cursor"
+         , id <| cursorID model
          ]
     []
 
