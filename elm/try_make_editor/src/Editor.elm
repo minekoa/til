@@ -269,7 +269,7 @@ input s model =
               |> eventLog "input (ignored)" s
             , Cmd.none )
         False ->
-            ( insert model (Buffer.nowCursorPos model.buffer) (String.right 1 s)
+            ( insert (String.right 1 s) model 
                 |> eventLog "input" (String.right 1 s)
             , Cmd.none)
 
@@ -287,11 +287,9 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=False, alt=False, shift=True , code= 39, f=selectForward }  -- 'S-→'
                  , {ctrl=False, alt=False, shift=True , code= 40, f=selectNext }     -- 'S-↓' 
 
-                 , {ctrl=False, alt=False, shift=False, code=  8, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) } -- BS
-                 , {ctrl=False, alt=False, shift=False, code= 46, f=(\m -> case m.buffer.selection of
-                                                                               Nothing -> delete m (Buffer.nowCursorPos m.buffer)
-                                                                               Just s  -> deleteRange m s 
-                                                                    )  }   -- DEL
+                 , {ctrl=False, alt=False, shift=False, code=  8, f=backspace } -- BS
+                 , {ctrl=False, alt=False, shift=False, code= 46, f=delete }    -- DEL
+
                  -- note: C-c, C-x, C-v は、システムのクリップボードと連携したいので、
                  --       ブラウザの ClipboardEvent (copy, cut, paste)を発火させるため、ここでは何もしない
 
@@ -302,14 +300,11 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=True , alt=False, shift=False, code= 66, f=moveBackward }--  'C-b'
                  , {ctrl=True , alt=False, shift=False, code= 78, f=moveNext }    --  'C-n'
                  , {ctrl=True , alt=False, shift=False, code= 80, f=movePrevios } --  'C-p'
-                 , {ctrl=True , alt=False, shift=False, code= 72, f=(\m -> backspace m (Buffer.nowCursorPos m.buffer)) }  -- 'C-h'
-                 , {ctrl=True , alt=False, shift=False, code= 68, f=(\m -> case m.buffer.selection of
-                                                                               Nothing -> delete m (Buffer.nowCursorPos m.buffer)
-                                                                               Just s  -> deleteRange m s
-                                                                    )  }    -- 'C-d'
+                 , {ctrl=True , alt=False, shift=False, code= 72, f=backspace }   --  'C-h'
+                 , {ctrl=True , alt=False, shift=False, code= 68, f=delete }      --  'C-d'
                  , {ctrl=False , alt=True, shift=False, code= 87, f=(\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| copy m sel) |> Maybe.withDefault m) } -- 'M-w'
                  , {ctrl=True , alt=False, shift=False, code= 87, f=(\m -> m.buffer.selection |> Maybe.andThen (\sel -> Just <| cut m sel) |> Maybe.withDefault m) } -- 'C-w'
-                 , {ctrl=True , alt=False, shift=False, code= 77, f=(\m -> insert m (Buffer.nowCursorPos m.buffer) "\n") }-- 'C-m'
+                 , {ctrl=True , alt=False, shift=False, code= 77, f= insert "\n" }-- 'C-m'
                  , {ctrl=True , alt=False, shift=False, code= 89, f=(\m -> paste m (Buffer.nowCursorPos m.buffer) m.copyStore)} -- 'C-y'
                  ]
 
@@ -360,6 +355,10 @@ compositionStart data model =
           | compositionData = Just data
           , enableComposer = True
       }
+      |> ( \m -> case model.buffer.selection of
+                     Just s  -> deleteRange s m
+                     Nothing -> m
+         )
       |> blinkBlock
       |> eventLog "compositoinstart" data
     , Cmd.none
@@ -378,7 +377,7 @@ compositionEnd data model =
     -- note: 変換プレビューのクリアはするが、
     --        firefox ではこの後 input イベントがくるので、
     --        それを無視する為 enable-conposerは立てたままにする (keypressイベントで解除する、そちらを参照)
-    ( insert model (Buffer.nowCursorPos model.buffer) data
+    ( insert data model
       |> compositionDataClear
       |> blinkBlock
       |> eventLog "compositionend" data
@@ -542,30 +541,74 @@ selectNext model =
 -- edit
 ------------------------------------------------------------
 
-insert: Model -> (Int, Int)  -> String -> Model
-insert model (row, col) text =
+insert: String -> Model-> Model
+insert text model  =
+    { model
+          | buffer = case model.buffer.selection of
+                         Nothing ->
+                             Buffer.insert (Buffer.nowCursorPos model.buffer) text model.buffer
+                         Just s ->
+                             model.buffer
+                                 |> Buffer.deleteRange s
+                                 |> Buffer.selectionClear
+                                 |> (\m -> Buffer.insert (Buffer.nowCursorPos m) text m)
+    }
+        |> blinkBlock
+        |> requestScroll
+
+backspace: Model -> Model
+backspace model =
+    { model
+          | buffer = case model.buffer.selection of
+                         Nothing ->
+                             Buffer.backspace (Buffer.nowCursorPos model.buffer) model.buffer
+                         Just s ->
+                             model.buffer
+                                 |> Buffer.deleteRange s
+                                 |> Buffer.selectionClear
+    }
+        |> blinkBlock
+        |> requestScroll
+
+delete: Model ->  Model
+delete model =
+    { model
+        | buffer = case model.buffer.selection of
+                       Nothing ->
+                           Buffer.delete (Buffer.nowCursorPos model.buffer) model.buffer
+                       Just s ->
+                           model.buffer
+                               |> Buffer.deleteRange s
+                               |> Buffer.selectionClear
+    }
+        |> blinkBlock
+        |> requestScroll
+
+
+-- 場所指定して編集
+
+insertPos: (Int, Int) -> String -> Model -> Model
+insertPos (row, col) text  model =
     { model | buffer = Buffer.insert (row, col) text model.buffer }
         |> selectionClear
         |> blinkBlock
+        |> requestScroll
 
-
-backspace: Model -> (Int, Int) -> Model
-backspace model (row, col) =
-    { model | buffer = Buffer.backspace (row, col) model.buffer}
-        |> selectionClear
-        |> blinkBlock
-
-delete: Model -> (Int, Int) -> Model
-delete model (row, col) =
+deletePos: (Int, Int) -> Model -> Model
+deletePos (row, col) model =
     { model | buffer = Buffer.delete (row, col) model.buffer}
         |> selectionClear
         |> blinkBlock
+        |> requestScroll
 
-deleteRange: Model -> Buffer.Range -> Model
-deleteRange model selection =
+deleteRange: Buffer.Range -> Model -> Model
+deleteRange selection model =
     { model | buffer = Buffer.deleteRange selection model.buffer}
         |> selectionClear
         |> blinkBlock
+        |> requestScroll
+
+-- undo / redo
 
 undo : Model -> Model
 undo model =

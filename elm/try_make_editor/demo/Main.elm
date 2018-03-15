@@ -48,11 +48,6 @@ init =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
---        RawInput txt ->
---            ( { model
---                  | editor = Editor.init model.editor.id txt
---              }
---            , Cmd.none)
         MoveForward ->
             ( { model
                   | editor = Editor.moveForward model.editor
@@ -76,15 +71,13 @@ update msg model =
 
         Backspace ->
             ( { model
-                  | editor = Editor.backspace model.editor (Buffer.nowCursorPos model.editor.buffer)
+                  | editor = Editor.backspace model.editor
               }
             , Cmd.none)
 
         Delete ->
             ( { model
-                  | editor =  case model.editor.buffer.selection of
-                                  Nothing -> Editor.delete model.editor (Buffer.nowCursorPos model.editor.buffer)
-                                  Just s  -> Editor.deleteRange model.editor s
+                  | editor =  Editor.delete model.editor
               }
             , Cmd.none)
 
