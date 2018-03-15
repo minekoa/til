@@ -118,7 +118,7 @@ update msg model =
 
         Pasted s ->
             paste s model
-                |> Tuple.mapFirst (eventLog "pasete" s)
+                |> Tuple.mapFirst (eventLog "pasted" s)
 
         Copied s ->
             copy model
@@ -229,15 +229,15 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
 
                  -- emacs like binds
-                 , {ctrl=True , alt=False, shift=False, code= 70, f=moveForward } --  'C-f'
-                 , {ctrl=True , alt=False, shift=False, code= 66, f=moveBackward }--  'C-b'
-                 , {ctrl=True , alt=False, shift=False, code= 78, f=moveNext }    --  'C-n'
-                 , {ctrl=True , alt=False, shift=False, code= 80, f=movePrevios } --  'C-p'
-                 , {ctrl=True , alt=False, shift=False, code= 72, f=backspace }   --  'C-h'
-                 , {ctrl=True , alt=False, shift=False, code= 68, f=delete }      --  'C-d'
-                 , {ctrl=False , alt=True, shift=False, code= 87, f=copy } -- 'M-w'
-                 , {ctrl=True , alt=False, shift=False, code= 87, f=cut  } -- 'C-w'
-                 , {ctrl=True , alt=False, shift=False, code= 77, f= insert "\n" }-- 'C-m'
+                 , {ctrl=True , alt=False, shift=False, code= 70, f=moveForward }  -- 'C-f'
+                 , {ctrl=True , alt=False, shift=False, code= 66, f=moveBackward } -- 'C-b'
+                 , {ctrl=True , alt=False, shift=False, code= 78, f=moveNext }     -- 'C-n'
+                 , {ctrl=True , alt=False, shift=False, code= 80, f=movePrevios }  -- 'C-p'
+                 , {ctrl=True , alt=False, shift=False, code= 72, f=backspace }    -- 'C-h'
+                 , {ctrl=True , alt=False, shift=False, code= 68, f=delete }       -- 'C-d'
+                 , {ctrl=False , alt=True, shift=False, code= 87, f=copy }         -- 'M-w' (注: クリップボード連携なし)
+                 , {ctrl=True , alt=False, shift=False, code= 87, f=cut  }         -- 'C-w' (注: クリップボード連携なし)
+                 , {ctrl=True , alt=False, shift=False, code= 77, f= insert "\n" } -- 'C-m'
                  , {ctrl=True , alt=False, shift=False, code= 89, f=(\m -> paste m.copyStore m) } -- 'C-y'
                  ]
 
@@ -344,30 +344,7 @@ compositionDataClear model =
     }
 
 ------------------------------------------------------------
--- cursor
-------------------------------------------------------------
-
-moveF : (Buffer.Model -> Buffer.Model) -> Model -> (Model, Cmd Msg)
-moveF f model =
-    { model | buffer = f model.buffer }
-        |> selectionClear
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
-moveForward : Model -> (Model, Cmd Msg)
-moveForward = moveF Buffer.moveForward
-
-moveBackward : Model -> (Model, Cmd Msg)
-moveBackward = moveF Buffer.moveBackward
-
-movePrevios : Model -> (Model, Cmd Msg)
-movePrevios = moveF Buffer.movePrevios
-
-moveNext : Model -> (Model, Cmd Msg)
-moveNext = moveF Buffer.moveNext
-
-------------------------------------------------------------
--- scroll
+-- scroll command generator
 ------------------------------------------------------------
 
 withEnsureVisibleCmd : Model -> (Model, Cmd Msg)
@@ -423,20 +400,52 @@ calcHScrollPos model =
             else 
                 Nothing
 
+
 ------------------------------------------------------------
--- selection
+-- update > cursor
 ------------------------------------------------------------
+
+-- Tools
+
+moveF : (Buffer.Model -> Buffer.Model) -> Model -> (Model, Cmd Msg)
+moveF f model =
+    { model | buffer = f model.buffer }
+        |> selectionClear
+        |> blinkBlock
+        |> withEnsureVisibleCmd
+
+-- API
+
+moveForward : Model -> (Model, Cmd Msg)
+moveForward = moveF Buffer.moveForward
+
+moveBackward : Model -> (Model, Cmd Msg)
+moveBackward = moveF Buffer.moveBackward
+
+movePrevios : Model -> (Model, Cmd Msg)
+movePrevios = moveF Buffer.movePrevios
+
+moveNext : Model -> (Model, Cmd Msg)
+moveNext = moveF Buffer.moveNext
+
+
+------------------------------------------------------------
+-- update > selection
+------------------------------------------------------------
+
+-- Tools
 
 selectionClear : Model -> Model
 selectionClear model =
     { model | buffer = Buffer.selectionClear model.buffer }
-
 
 selectF : (Buffer.Model -> Buffer.Model) -> Model -> (Model, Cmd Msg)
 selectF f model =
     { model | buffer = f model.buffer }
         |> blinkBlock
         |> withEnsureVisibleCmd
+
+-- API
 
 selectBackward: Model -> (Model, Cmd Msg)
 selectBackward = selectF Buffer.selectBackward
@@ -452,8 +461,10 @@ selectNext = selectF Buffer.selectNext
 
 
 ------------------------------------------------------------
--- edit
+-- update > edit
 ------------------------------------------------------------
+
+-- Tools
 
 editF : (Buffer.Model -> Buffer.Model) -> Model -> (Model, Cmd Msg)
 editF f model =
@@ -493,11 +504,7 @@ buffer_delete bufmodel =
                 |> Buffer.selectionClear
 
 
-
-
-
-
-
+-- API
 
 insert: String -> Model-> (Model, Cmd Msg)
 insert text = editF (buffer_insert text)
@@ -509,7 +516,7 @@ delete: Model ->  (Model, Cmd Msg)
 delete = editF buffer_delete
 
 
--- 場所指定して編集
+-- API (Extra: 場所指定して編集)
 
 insertPos: (Int, Int) -> String -> Model -> (Model, Cmd Msg)
 insertPos (row, col) text  model =
@@ -533,7 +540,11 @@ deleteRange selection model =
         |> withEnsureVisibleCmd
 
 
--- undo / redo
+------------------------------------------------------------
+-- update > undo / redo
+------------------------------------------------------------
+
+-- API
 
 undo : Model -> (Model, Cmd Msg)
 undo model =
@@ -543,21 +554,22 @@ undo model =
         |> withEnsureVisibleCmd
 
 
--- clipboard action
+------------------------------------------------------------
+-- update > clipboard action
+------------------------------------------------------------
+
+-- API (for User and Browser's clipboard action (Copied, Cutted, Pasted (custom events)) )
 
 copy : Model -> (Model, Cmd Msg)
 copy model =
-    -- note: sytem の clipboard  にはコピーされません
+    -- note: ブラウザのセキュリティ制約により、sytem の clipboard  にはコピーされません
     ( case model.buffer.selection of
           Nothing -> model
           Just sel ->
-              let
-                  s = Buffer.readRange sel model.buffer
-              in
-                  { model
-                      | copyStore = s
-                      , buffer = Buffer.selectionClear model.buffer
-                  }
+          { model
+              | copyStore = Buffer.readRange sel model.buffer
+              , buffer = Buffer.selectionClear model.buffer
+          }
     )
         |> blinkBlock
         |> (\m -> (m, Cmd.none))
@@ -565,17 +577,14 @@ copy model =
 
 cut : Model -> (Model, Cmd Msg)
 cut model =
-    -- note: sytem の clipboard  にはコピーされません
+    -- note: ブラウザのセキュリティ制約により、sytem の clipboard  にはコピーされません
     ( case model.buffer.selection of
           Nothing -> model
           Just sel ->
-              let
-                  s = Buffer.readRange sel model.buffer
-              in
-                  { model
-                      | copyStore = s
-                      , buffer = model.buffer |> Buffer.deleteRange sel |> Buffer.selectionClear
-                  }
+          { model
+              | copyStore = Buffer.readRange sel model.buffer
+              , buffer = model.buffer |> Buffer.deleteRange sel |> Buffer.selectionClear
+          }
     )
         |> blinkBlock
         |> withEnsureVisibleCmd
@@ -593,11 +602,11 @@ paste text model =
 
 
 
--- 場所指定版
+-- API (Extra: 場所を指定して編集)
 
 copyRange : Model -> Buffer.Range -> (Model, Cmd Msg)
 copyRange model selection =
-    -- note: sytem の clipboard  にはコピーされません
+    -- note: ブラウザのセキュリティ制約により、sytem の clipboard  にはコピーされません
     let
         s = Buffer.readRange selection model.buffer
     in
@@ -608,7 +617,7 @@ copyRange model selection =
 
 cutRange : Model -> Buffer.Range -> (Model, Cmd Msg)
 cutRange model selection =
-    -- note: sytem の clipboard  にはコピーされません
+    -- note: ブラウザのセキュリティ制約により、sytem の clipboard  にはコピーされません
     let
         s = Buffer.readRange selection model.buffer
     in
