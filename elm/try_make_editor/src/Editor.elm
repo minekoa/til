@@ -6,6 +6,8 @@ module Editor exposing ( Model
                        , moveBackward
                        , movePrevios
                        , moveNext
+                       , moveBOL
+                       , moveEOL
                        , selectForward
                        , selectBackward
                        , selectPrevios
@@ -214,6 +216,8 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=False, alt=False, shift=False, code= 38, f=movePrevios }  -- '↑'
                  , {ctrl=False, alt=False, shift=False, code= 39, f=moveForward }  -- '→'
                  , {ctrl=False, alt=False, shift=False, code= 40, f=moveNext }     -- '↓'
+                 , {ctrl=False, alt=False, shift=False, code= 36, f=moveBOL }      -- Home
+                 , {ctrl=False, alt=False, shift=False, code= 35, f=moveEOL }      -- End
 
                  , {ctrl=False, alt=False, shift=True , code= 37, f=selectBackward } -- 'S-←'
                  , {ctrl=False, alt=False, shift=True , code= 38, f=selectPrevios }  -- 'S-↑'
@@ -233,9 +237,11 @@ keymapper (ctrl, alt, shift, keycode) =
                  , {ctrl=True , alt=False, shift=False, code= 66, f=moveBackward } -- 'C-b'
                  , {ctrl=True , alt=False, shift=False, code= 78, f=moveNext }     -- 'C-n'
                  , {ctrl=True , alt=False, shift=False, code= 80, f=movePrevios }  -- 'C-p'
+                 , {ctrl=True , alt=False, shift=False, code= 65, f=moveBOL }      -- 'C-a'
+                 , {ctrl=True , alt=False, shift=False, code= 69, f=moveEOL }      -- 'C-e'
                  , {ctrl=True , alt=False, shift=False, code= 72, f=backspace }    -- 'C-h'
                  , {ctrl=True , alt=False, shift=False, code= 68, f=delete }       -- 'C-d'
-                 , {ctrl=False , alt=True, shift=False, code= 87, f=copy }         -- 'M-w' (注: クリップボード連携なし)
+                 , {ctrl=False, alt=True , shift=False, code= 87, f=copy }         -- 'M-w' (注: クリップボード連携なし)
                  , {ctrl=True , alt=False, shift=False, code= 87, f=cut  }         -- 'C-w' (注: クリップボード連携なし)
                  , {ctrl=True , alt=False, shift=False, code= 77, f= insert "\n" } -- 'C-m'
                  , {ctrl=True , alt=False, shift=False, code= 89, f=(\m -> paste m.copyStore m) } -- 'C-y'
@@ -425,6 +431,17 @@ movePrevios = moveF Buffer.movePrevios
 moveNext : Model -> (Model, Cmd Msg)
 moveNext = moveF Buffer.moveNext
 
+moveBOL : Model -> (Model, Cmd Msg)
+moveBOL = moveF (\m -> {m | cursor = Buffer.Cursor m.cursor.row 0})
+
+moveEOL : Model -> (Model, Cmd Msg)
+moveEOL = moveF (\m ->
+                     {m | cursor = Buffer.Cursor m.cursor.row (Buffer.line m.cursor.row m.contents
+                                                              |> Maybe.withDefault ""
+                                                              |> String.length
+                                                              )
+                     }
+                )
 
 ------------------------------------------------------------
 -- update > selection
