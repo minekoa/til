@@ -89,9 +89,7 @@
 * [x] 問題: Insert でスクロールしない
     *（たぶんbackspaceやundoでもしない)(deleteはもともとカーソルが動かないので大丈夫）
 * [ ] 問題: tab 文字が入力できない
-* extra 機能: チャンク（今は「行のリスト」で持っている）
-* extra 問題: IME入力で注目文節がわからない (compositionEvent API の限界により）
-* extra 表示効率化: 見えないところは描画しない
+* [ ] 問題: IME入力中に, 文字をいっぱい入力すると、候補リストの位置がずれる (textarea の幅が変わらないため)
 * [x] 不具合: firefox で カーソルが点滅しない
     * 49.0.2 だったので、focusin / focusout イベントに対応していなかったのが問題だったみたい
     * firefoxのバージョンをあげたら治った
@@ -119,4 +117,7 @@
           結果IMEへの入力中に変換候補がどんどん右にずれていく問題が発生してしまった。
 * [x] 不具合: Windows Chrome で IME入力確定を 次の文字入力で始めると, compositionend で textarea.value をクリアしても消えてない（ため、変換候補リストの表示位置がずれる）
     * IME入力切り替えと、textareaのクリア周りを Native に移した.
+* [ ] extra 機能: チャンク（今は「行のリスト」で持っている）
+* [ ] extra 問題: IME入力で注目文節がわからない (compositionEvent API の限界により）
+* [ ] extra 表示効率化: 見えないところは描画しない
 

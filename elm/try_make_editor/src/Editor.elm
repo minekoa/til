@@ -835,6 +835,7 @@ cursorLayer model =
                                 , style [ ("border", "none"), ("padding", "0"), ("margin","0"), ("outline", "none")
                                         , ("overflow", "hidden"), ("opacity", "0")
                                         , ("resize", "none")
+                                        , ("height", "1em"), ("font-size", "1em") -- 親のスタイルにあわせて大きさを買えるために必要
                                         , ("position", "absolute")
                                         ]
                                 ]
