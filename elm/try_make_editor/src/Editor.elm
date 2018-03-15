@@ -74,7 +74,7 @@ init id text =
 
             Nothing                --scrollReq (V)
             Nothing                --scrollReq (H)
-    , Task.perform (\_ -> IgnoreResult) (elaborateInputAreaEventHandlers (id ++ "-input"))
+    , Cmd.none
     )
 
 -- frame > cursor blink
@@ -217,7 +217,7 @@ update msg model =
             ( {model
                   | focus = True
               }
-            , Cmd.none)
+            , Task.perform (\_ -> IgnoreResult) (elaborateInputArea (model.id ++ "-input")) )
 
         FocusOut _ ->
             ( {model|focus = False}
@@ -1010,9 +1010,9 @@ doFocus : String -> Task Never Bool
 doFocus id =
     Task.succeed (Native.Mice.doFocus id)
 
-elaborateInputAreaEventHandlers: String  -> Task Never Bool
-elaborateInputAreaEventHandlers input_area_id =
-    Task.succeed (Native.Mice.elaborateInputAreaEventHandlers input_area_id)
+elaborateInputArea: String  -> Task Never Bool
+elaborateInputArea input_area_id =
+    Task.succeed (Native.Mice.elaborateInputArea input_area_id)
 
 setScrollTop : String -> Int -> Task Never Bool
 setScrollTop id pixels =

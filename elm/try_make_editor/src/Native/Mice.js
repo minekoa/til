@@ -32,14 +32,24 @@ var _minekoa$project$Native_Mice = function() {
         return rect;
     }
 
-    function elaborateInputAreaEventHandlers(id_input_area) {
-        const body = document.body;
-        if (body === null) {
-            console.log("Fatal Error: document.body.addEventlisthener. 'body' is null");
+    function elaborateInputArea(id_input_area) {
+        const input_area = document.getElementById(id_input_area);
+        if (input_area == null) {
+            return false;
         }
 
-        body.addEventListener( "keydown", e => {
-            if (e.target.id != id_input_area) { return true;}
+        if (input_area.input_controll_handlers_registerd) {
+            return true;
+        }
+        input_area.input_controll_handlers_registerd = true;
+        console.log("regist inpt-ctrl event handlers");
+
+
+        input_area.addEventListener( "keydown", e => {
+            if (e.target.id != id_input_area) {
+                return true;
+            }
+
 
             if (e.ctrlKey && (e.keyCode == 86 || e.keyCode == 67 || e.keyCode == 88)) { /* C-v : pasteイベントは生かしておきたい */
                 ;
@@ -57,32 +67,21 @@ var _minekoa$project$Native_Mice = function() {
             }
         });
 
-        body.addEventListener( "input", e => {
-            if (e.target.id != id_input_area) { return true;}
-            const input_area = e.target;
-
+        input_area.addEventListener( "input", e => {
             if (!input_area.enableComposer) {
                 input_area.value = "";
             }
         });
 
-        body.addEventListener( "compositionstart", e => {
-            if (e.target.id != id_input_area) { return true;}
-            const input_area = e.target;
-
+        input_area.addEventListener( "compositionstart", e => {
             input_area.enableComposer = true;
         });
 
-        body.addEventListener( "compositionend", e => {
-            if (e.target.id != id_input_area) { return true;}
-            const input_area = e.target;
-
+        input_area.addEventListener( "compositionend", e => {
             input_area.value = "";
         });
 
-        body.addEventListener( "keypress", e => {
-            if (e.target.id != id_input_area) { return true;}
-            const input_area = e.target;
+        input_area.addEventListener( "keypress", e => {
 
             /* IME入力中にkeypress イベントがこないことを利用して IME入力モード(inputを反映するか否かのフラグ）を解除
              *  ※ compositonEnd で解除してしまうと、firefoxとchromeの振る舞いの違いでハマる
@@ -93,7 +92,7 @@ var _minekoa$project$Native_Mice = function() {
             input_area.enableComposer = false;
         });
 
-        body.addEventListener( "paste", e => {
+        input_area.addEventListener( "paste", e => {
             e.preventDefault();
 
             const data_transfer = (e.clipboardData) || (window.clipboardData);
@@ -107,10 +106,7 @@ var _minekoa$project$Native_Mice = function() {
             input_area.dispatchEvent(evt);
         });
 
-        body.addEventListener( "copy", e => {
-            if (e.target.id != id_input_area) { return true;}
-            const input_area = e.target;
-
+        input_area.addEventListener( "copy", e => {
             e.preventDefault();
 
             const str = input_area.selecteddata
@@ -124,10 +120,7 @@ var _minekoa$project$Native_Mice = function() {
             input_area.dispatchEvent(evt);
         });
 
-        body.addEventListener( "cut", e => {
-            if (e.target.id != id_input_area) { return true;}
-            const input_area = e.target;
-
+        input_area.addEventListener( "cut", e => {
             e.preventDefault();
 
             const str = input_area.selecteddata
@@ -196,7 +189,7 @@ var _minekoa$project$Native_Mice = function() {
       doFocus: doFocus,
       calcTextWidth: F2(calcTextWidth),
       getBoundingClientRect: getBoundingClientRect,
-      elaborateInputAreaEventHandlers : elaborateInputAreaEventHandlers,
+      elaborateInputArea : elaborateInputArea,
       getScrollTop: getScrollTop,
       setScrollTop: F2(setScrollTop),
       getScrollLeft: getScrollLeft,
