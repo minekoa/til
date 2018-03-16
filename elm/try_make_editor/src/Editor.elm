@@ -770,40 +770,40 @@ codeLayer model =
             ] <|
             List.indexedMap
                 (λ n ln ->
-                      if n == cursor.row then
-                          div [ class "line"
-                              , style [ ("height", "1em")
-                                      , ("width", "100%")
-                                      , ("text-wrap", "none")
-                                      , ("white-space", "pre")
-                                      ]
-                              , onMouseDown (DragStart n)
-                              ]
+                      div [ class "line"
+                          , style [ ("height", "1em")
+                                  , ("width", "100%")
+                                  , ("text-wrap", "none")
+                                  , ("white-space", "pre")
+                                  , ("pointer-events", "auto") -- マウスイベントの対象にする
+                                  ]
+                          , onMouseDown (DragStart n)
+                          ] <|
+                          if n == cursor.row then
                               [ span [ style [ ("position", "relative")
                                              , ("white-space", "pre")
+                                             , ("pointer-events", "none") -- マウスイベントの対象外にする
                                              ]
                                      ]
-                                    [ text <| String.left cursor.column ln]
+                                     [ text <| String.left cursor.column ln]
                               , compositionPreview model.compositionPreview
                               , span [ style [ ("position", "relative")
                                              , ("white-space", "pre")
+                                             , ("pointer-events", "none") -- マウスイベントの対象外にする
                                              ]
                                      ]
                                      [ text <| String.dropLeft cursor.column ln]                                  
                               ]
-                      else
-                          div [ class "line"
-                              , style [ ("height", "1em")
-                                      , ("text-wrap", "none")
-                                      , ("white-space", "pre")
-                                      ]
-                              , onMouseDown (DragStart n)
-                              ] [text ln] ) contents
+                          else
+                              [text ln]
+                ) contents
 
 cursorLayer : Model -> Html Msg
 cursorLayer model =
     div [ class "cursor-layer"
-        , style [("position", "absolute")]
+        , style [ ("position", "absolute")
+                , ("pointer-events", "none") -- マウスイベントの対象外にする
+                ]
         ]
         [ div [style [ ("position", "relative")
                      , ("display" , "inline-flex")
@@ -871,7 +871,9 @@ markerLayer model =
                                )
             in
                 div [ class "marker-layer"
-                    , style [("position", "absolute")]
+                    , style [ ("position", "absolute")
+                            , ("pointer-events", "none") -- マウスイベントの対象外にする
+                            ]
                     ]
                     ( List.map (\ m ->
                                   div [ style [ ("position", "absolute")
@@ -908,6 +910,7 @@ pad model =
          , style [ ("position", "relative")
                  , ("white-space", "pre")
                  , ("visibility", "hidden")                     
+                 , ("pointer-events", "none") -- マウスイベントの対象外にする
                  ]
          ]
          [ Buffer.line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text ]
@@ -921,6 +924,7 @@ padToCursor pos model =
          , style [ ("position", "relative")
                  , ("white-space", "pre")
                  , ("visibility", "hidden")                     
+                 , ("pointer-events", "none") -- マウスイベントの対象外にする
                  ]
          ]
          [ Buffer.line (Tuple.first pos) contents |> Maybe.withDefault "" |> String.left (Tuple.second pos) |> text ]
@@ -928,14 +932,21 @@ padToCursor pos model =
 
 
 ruler : String -> Html msg
-ruler base_id = 
-    span [ id base_id
-         , style [ ("position", "absolute")
-                 , ("white-space", "pre")
-                 , ("color", "green")
-                 ]
-         ]
-         []
+ruler ruler_id = 
+    div [ class "ruler-layer"
+        , style [ ("position", "absolute")
+                , ("overflow", "hidden")
+                , ("width", "0px")
+                , ("opacity", "0")
+                , ("pointer-events", "none") -- マウスイベントの対象外にする
+                ]
+        ]
+        [ span [ id ruler_id
+               , style [ ("white-space", "pre")
+                       ]
+               ]
+               []
+        ]
 
 compositionPreview : Maybe String -> Html msg
 compositionPreview compositionData =
@@ -961,6 +972,7 @@ cursorView model =
                 , ("opacity", if model.focus && (blink_off model.blink) then "0.0" else "0.5")
                 , ("height", "1em")
                 , ("width", "3px")
+                , ("z-index", "99")
                 ]
          , id <| cursorID model
          ]
