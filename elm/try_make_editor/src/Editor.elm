@@ -747,7 +747,6 @@ codeArea : Model -> Html Msg
 codeArea model =
     div [ class "code-area"
         , style [ ("margin", "0"), ("padding", "0"), ("border", "none")
-                , ("width", "100%")
                 ]
         ]
         [ ruler <| rulerID model
