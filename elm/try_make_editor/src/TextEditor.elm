@@ -1,28 +1,28 @@
-module Editor exposing ( Model
-                       , init
-                       , update
-                       , Msg(..)
-                       , moveForward
-                       , moveBackward
-                       , movePrevios
-                       , moveNext
-                       , moveBOL
-                       , moveEOL
-                       , selectForward
-                       , selectBackward
-                       , selectPrevios
-                       , selectNext
-                       , insert
-                       , backspace
-                       , delete
-                       , deleteRange
-                       , undo
-                       , copy
-                       , cut
-                       , paste
-                       , subscriptions
-                       , view
-                       )
+module TextEditor exposing ( Model
+                           , init
+                           , update
+                           , Msg(..)
+                           , moveForward
+                           , moveBackward
+                           , movePrevios
+                           , moveNext
+                           , moveBOL
+                           , moveEOL
+                           , selectForward
+                           , selectBackward
+                           , selectPrevios
+                           , selectNext
+                           , insert
+                           , backspace
+                           , delete
+                           , deleteRange
+                           , undo
+                           , copy
+                           , cut
+                           , paste
+                           , subscriptions
+                           , view
+                           )
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -33,7 +33,7 @@ import Mouse
 import Time exposing (Time, second)
 import Task exposing (Task)
 
-import Editor.Buffer as Buffer
+import TextEditor.Buffer as Buffer
 import Native.Mice
 
 {-| This module is simple texteditor.

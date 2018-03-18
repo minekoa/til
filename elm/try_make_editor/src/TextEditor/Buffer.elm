@@ -1,38 +1,38 @@
-module Editor.Buffer exposing ( Model
-                              , init
+module TextEditor.Buffer exposing ( Model
+                                  , init
+                                      
+                                  , Cursor
+                                  , nowCursorPos
+                                  , isPreviosPos
+                                  , line
+                                  , Range
+                                  , readRange
+                                  , selectedString
 
-                              , Cursor
-                              , nowCursorPos
-                              , isPreviosPos
-                              , line
-                              , Range
-                              , readRange
-                              , selectedString
+                                  -- history
+                                  , EditCommand(Cmd_Insert, Cmd_Backspace, Cmd_Delete)
 
-                              -- history
-                              , EditCommand(Cmd_Insert, Cmd_Backspace, Cmd_Delete)
+                                  -- cursor move
+                                  , moveForward
+                                  , moveBackward
+                                  , movePrevios
+                                  , moveNext
 
-                              -- cursor move
-                              , moveForward
-                              , moveBackward
-                              , movePrevios
-                              , moveNext
+                                  -- selection
+                                  , markSet
+                                  , selectBackward
+                                  , selectForward
+                                  , selectPrevios
+                                  , selectNext
+                                  , selectionClear
 
-                              -- selection
-                              , markSet
-                              , selectBackward
-                              , selectForward
-                              , selectPrevios
-                              , selectNext
-                              , selectionClear
-
-                              -- edit
-                              , insert
-                              , backspace
-                              , delete
-                              , deleteRange
-                              , undo
-                              )
+                                  -- edit
+                                  , insert
+                                  , backspace
+                                  , delete
+                                  , deleteRange
+                                  , undo
+                                  )
 
 type alias Model =
     { cursor : Cursor
