@@ -4,7 +4,6 @@ module TextEditor exposing ( Model
                            , Msg(..)
                            , subscriptions
                            , view
-                           , updateMap
                            )
 
 import Html exposing (..)
@@ -60,7 +59,6 @@ init id keymap text =
 
 type Msg
     = CoreMsg Core.Msg
-    | IgnoreResult
     | Pasted String
     | Copied String
     | Cutted String
@@ -82,9 +80,6 @@ update msg model =
             Core.update cmsg model.core
                 |> Tuple.mapFirst (\cm -> { model | core = cm } )
                 |> Tuple.mapSecond (Cmd.map CoreMsg)
-
-        IgnoreResult ->  -- Task Result (Native)
-            (model, Cmd.none)
 
         -- System-Clipboard's Action Notification (Do Fitting Elm's Model State)
 
@@ -125,7 +120,7 @@ update msg model =
                 cm = model.core
             in
             ( { model | core = {cm | focus = True}  }
-            , Task.perform (\_ -> IgnoreResult) (elaborateInputArea (inputAreaID model.core))
+            , Cmd.map CoreMsg (Core.elaborateInputArea model.core)
             )
 
         FocusOut _ ->
@@ -139,7 +134,7 @@ update msg model =
         ClickDisplay ->
             ( model
                 |> eventLog "setfocus" ""
-            , Task.perform (\_ -> IgnoreResult) (doFocus <| inputAreaID model.core)
+            , Cmd.map CoreMsg (Core.doFocus model.core)
             )
 
         DragStart row xy ->
@@ -166,7 +161,7 @@ update msg model =
                                                ++ "; calced_col=" ++ (toString col)
                                           )
                   |> blinkBlock
-                , Task.perform (\_ -> IgnoreResult) (doFocus <| inputAreaID model.core) -- firefox 限定で、たまーに、SetFocus が来ないことがあるので、ここでもやっとく。
+                , Cmd.map CoreMsg (Core.doFocus model.core)  -- firefox 限定で、たまーに、SetFocus が来ないことがあるので、ここでもやっとく。
                 )
 
 
@@ -702,30 +697,14 @@ selecteddata selected_str =
 -- Native (Mice)
 ------------------------------------------------------------
 
--- Task
-
-doFocus : String -> Task Never Bool
-doFocus id =
-    Task.succeed (Native.Mice.doFocus id)
-
-elaborateInputArea: String  -> Task Never Bool
-elaborateInputArea input_area_id =
-    Task.succeed (Native.Mice.elaborateInputArea input_area_id)
-
---setScrollTop : String -> Int -> Task Never Bool
---setScrollTop id pixels =
---    Task.succeed (Native.Mice.setScrollTop id pixels)
-
---setScrollLeft : String -> Int -> Task Never Bool
---setScrollLeft id pixels =
---    Task.succeed (Native.Mice.setScrollLeft id pixels)
-
 
 -- Function
 
 calcTextWidth : String -> String -> Int
 calcTextWidth id txt = Native.Mice.calcTextWidth id txt
 
+
+-- TODO: Core とコピペになってるのどうにかする
 type alias Rect =
     { left :Int
     , top : Int
@@ -740,12 +719,4 @@ type alias Rect =
 getBoundingClientRect: String -> Rect
 getBoundingClientRect id = Native.Mice.getBoundingClientRect id
 
--- getScrollTop: String -> Int
--- getScrollTop id = Native.Mice.getScrollTop id
-
--- getScrollLeft: String -> Int
--- getScrollLeft id = Native.Mice.getScrollLeft id
-
--- getScrollHeight : String -> Int
--- getScrollHeight id = Native.Mice.getScrollHeight
 

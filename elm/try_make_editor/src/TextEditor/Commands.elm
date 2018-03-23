@@ -20,7 +20,15 @@ module TextEditor.Commands exposing
 
 import TextEditor.Core as Core
 import TextEditor.Core.Commands as CoreCommands
-import TextEditor exposing (Model, Msg, updateMap)
+import TextEditor exposing (Model, Msg)
+
+
+-- Tools
+updateMap: Model -> (Core.Model, Cmd Core.Msg) -> (Model, Cmd Msg)
+updateMap model (em, ec) =
+    ( {model | core = em}
+    , Cmd.map TextEditor.CoreMsg ec)
+
 
 
 moveForward : Model -> (Model, Cmd Msg)

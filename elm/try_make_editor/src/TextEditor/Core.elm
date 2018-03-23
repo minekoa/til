@@ -18,6 +18,9 @@ module TextEditor.Core exposing
     , compositionUpdate
     , compositionEnd
     , withEnsureVisibleCmd
+
+    , doFocus
+    , elaborateInputArea
     )
 
 import Time exposing (Time, second)
@@ -249,6 +252,18 @@ buffer_insert text bufmodel=
 
 
 ------------------------------------------------------------
+-- Cmd
+------------------------------------------------------------
+
+doFocus: Model -> Cmd Msg
+doFocus model =
+    Task.perform (\_ -> IgnoreResult) (doFocusTask <| inputAreaID model)
+
+elaborateInputArea: Model -> Cmd Msg
+elaborateInputArea model =
+    Task.perform (\_ -> IgnoreResult) (elaborateInputAreaTask (inputAreaID model))
+
+------------------------------------------------------------
 -- Native
 ------------------------------------------------------------
 
@@ -259,6 +274,14 @@ setScrollTop id pixels =
 setScrollLeft : String -> Int -> Task Never Bool
 setScrollLeft id pixels =
     Task.succeed (Native.Mice.setScrollLeft id pixels)
+
+doFocusTask : String -> Task Never Bool
+doFocusTask id =
+    Task.succeed (Native.Mice.doFocus id)
+
+elaborateInputAreaTask: String  -> Task Never Bool
+elaborateInputAreaTask input_area_id =
+    Task.succeed (Native.Mice.elaborateInputArea input_area_id)
 
 
 -- Function
@@ -286,3 +309,10 @@ getScrollLeft id = Native.Mice.getScrollLeft id
 getScrollHeight : String -> Int
 getScrollHeight id = Native.Mice.getScrollHeight
 
+
+
+
+
+
+
+                     
