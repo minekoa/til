@@ -5,7 +5,10 @@ import Json.Encode as Encode
 import Json.Decode as Json
 
 import TextEditor as Editor
+import TextEditor.Core as Core
+import TextEditor.Commands as Commands
 import TextEditor.Buffer as Buffer
+import TextEditor.KeyBind as KeyBind
 
 main : Program Never Model Msg
 main =
@@ -47,7 +50,7 @@ type Msg
 init : (Model, Cmd Msg)
 init =
     let
-        (bm, bc) = Editor.init "editor-sample1" ""
+        (bm, bc) = Editor.init "editor-sample1" (KeyBind.basic ++ KeyBind.gates ++ KeyBind.emacsLike) ""
     in
         ( Model bm ""
               { index = "inherit", list = ["inherit", "black", "white", "linen", "dimgray", "whitesmoke", "midnightblue", "darkolivegreen", "darkslategray", "lavender"] }
@@ -58,48 +61,49 @@ init =
         )
 
 
--- 
 
-
-
-updateMap: Model -> (Editor.Model, Cmd Editor.Msg) -> (Model, Cmd Msg)
-updateMap model (em, ec) =
-    ( {model | editor = em}
-    , Cmd.map EditorMsg ec)
+updateMap: Model -> (Core.Model, Cmd Core.Msg) -> (Model, Cmd Msg)
+updateMap model (cm, cc) =
+    let
+        (em, ec) = Editor.updateMap model.editor (cm, cc)
+    in
+        ( {model | editor = em}
+        , Cmd.map EditorMsg ec
+        )
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         MoveForward ->
-            updateMap model (Editor.moveForward model.editor)
+            updateMap model (Commands.moveForward model.editor.core)
 
         MoveBackword ->
-            updateMap model (Editor.moveBackward model.editor)
+            updateMap model (Commands.moveBackward model.editor.core)
 
         MovePrevios ->
-            updateMap model (Editor.movePrevios model.editor)
+            updateMap model (Commands.movePrevios model.editor.core)
 
         MoveNext ->
-            updateMap model (Editor.moveNext model.editor)
+            updateMap model (Commands.moveNext model.editor.core)
 
         Backspace ->
-            updateMap model (Editor.backspace model.editor)
+            updateMap model (Commands.backspace model.editor.core)
 
         Delete ->
-            updateMap model (Editor.delete model.editor)
+            updateMap model (Commands.delete model.editor.core)
 
         Copy ->
-            updateMap model (Editor.copy model.editor)
+            updateMap model (Commands.copy model.editor.core)
 
         Cut ->
-            updateMap model (Editor.cut model.editor)
+            updateMap model (Commands.cut model.editor.core)
 
         Pasete ->
-            updateMap model (Editor.paste model.editor.copyStore model.editor)
+            updateMap model (Commands.paste model.editor.core.copyStore model.editor.core)
 
         Undo ->
-            updateMap model (Editor.undo model.editor)
+            updateMap model (Commands.undo model.editor.core)
 
         SetEventlogEnable True ->
             let
@@ -241,9 +245,9 @@ modeline model =
                     , ("color", "white")
                     ]
             ]
-            [ text <| toCursorString model.editor.buffer.cursor
-            , text <| toIMEString model.editor.compositionPreview
-            , text <| toSelectionString model.editor.buffer.selection
+            [ text <| toCursorString model.editor.core.buffer.cursor
+            , text <| toIMEString model.editor.core.compositionPreview
+            , text <| toSelectionString model.editor.core.buffer.selection
             ]
 
 controlPane : Model -> Html Msg
@@ -299,7 +303,7 @@ debugPane model =
                                      div [celstyle] [ "Bs_" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
                                  Buffer.Cmd_Delete (row, col) str ->
                                      div [celstyle] [ "Del" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                    ) model.editor.buffer.history
+                    ) model.editor.core.buffer.history
               )
         , div [ class "vbox"
               , style [ ("flex-grow", "8")
@@ -319,7 +323,7 @@ debugPane model =
                           ]
                           ( List.map
                                 (λ ln-> div [ style [("border-bottom", "1px dotted gray"), ("height", "1em")] ] [ text ln ] )
-                                (String.lines model.editor.copyStore)
+                                (String.lines model.editor.core.copyStore)
                           )
                     ]
               , div [ id "debug-pane-eventlog"

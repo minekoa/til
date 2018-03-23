@@ -2,26 +2,9 @@ module TextEditor exposing ( Model
                            , init
                            , update
                            , Msg(..)
-                           , moveForward
-                           , moveBackward
-                           , movePrevios
-                           , moveNext
-                           , moveBOL
-                           , moveEOL
-                           , selectForward
-                           , selectBackward
-                           , selectPrevios
-                           , selectNext
-                           , insert
-                           , backspace
-                           , delete
-                           , deleteRange
-                           , undo
-                           , copy
-                           , cut
-                           , paste
                            , subscriptions
                            , view
+                           , updateMap
                            )
 
 import Html exposing (..)
@@ -30,63 +13,45 @@ import Html.Events exposing (..)
 import Json.Decode as Json
 import Json.Encode
 import Mouse
-import Time exposing (Time, second)
 import Task exposing (Task)
 
 import TextEditor.Buffer as Buffer
+import TextEditor.Core as Core exposing (..)
+import TextEditor.Commands as Commands
+import TextEditor.KeyBind as KeyBind
+
+
 import Native.Mice
 
 {-| This module is simple texteditor.
 
 -}
 
-
 type alias Model =
-    { id : String -- frame id
-    , buffer : Buffer.Model
-    , copyStore : String
+    { core : Core.Model
 
-    -- frame
-    , enableComposer : Bool
-    , compositionPreview : Maybe String --IMEで返還中の未確定文字
-    , focus : Bool
-    , blink : BlinkState
+    -- state
+    , enableComposer : Bool -- ブラウザの互換のため、compositionEvent の遷移とは別の「IME入力中」判定フラグが必要
+
+    -- options
+    , keymap : List KeyBind.KeyBind
 
     -- for debug
     , event_log : Maybe (List String)
     }
 
-init : String -> String -> (Model, Cmd Msg)
-init id text =
-    ( Model id                     -- id
-            (Buffer.init text)
-            ""                     -- copyStore
-            False Nothing          -- COMPOSER STATE
-            False                  -- focus
-            BlinkBlocked           -- blink
-
-            Nothing                -- event_log
-    , Cmd.none
+init : String -> List KeyBind.KeyBind -> String -> (Model, Cmd Msg)
+init id keymap text =
+    let
+        (coreM, coreC) = Core.init id text
+    in
+    ( Model
+          coreM
+          False
+          keymap
+          Nothing
+    , Cmd.map CoreMsg coreC
     )
-
-
--- frame > cursor blink
-
-type BlinkState
-    = Blink Bool
-    | BlinkBlocked
-
-
-blinkTransition : BlinkState -> BlinkState
-blinkTransition blnk =
-    case blnk of
-        BlinkBlocked -> Blink True
-        Blink True   -> Blink False
-        Blink False  -> Blink True
-
-blinkBlock : Model -> Model
-blinkBlock model =
-    {model | blink = BlinkBlocked}
 
 
 ------------------------------------------------------------
@@ -94,7 +59,8 @@ blinkBlock model =
 ------------------------------------------------------------
 
 type Msg
-    = IgnoreResult
+    = CoreMsg Core.Msg
+    | IgnoreResult
     | Pasted String
     | Copied String
     | Cutted String
@@ -106,30 +72,33 @@ type Msg
     | CompositionEnd String
     | FocusIn Bool
     | FocusOut Bool
-    | SetFocus
+    | ClickDisplay
     | DragStart Int Mouse.Position
-    | Tick Time
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        -- Task Result (Native)
+        CoreMsg cmsg ->
+            Core.update cmsg model.core
+                |> Tuple.mapFirst (\cm -> { model | core = cm } )
+                |> Tuple.mapSecond (Cmd.map CoreMsg)
 
-        IgnoreResult ->
+        IgnoreResult ->  -- Task Result (Native)
             (model, Cmd.none)
 
+        -- System-Clipboard's Action Notification (Do Fitting Elm's Model State)
+
         Pasted s ->
-            paste s model
+            updateMap model (Commands.paste s model.core)
                 |> Tuple.mapFirst (eventLog "pasted" s)
 
         Copied s ->
-            copy model
+            updateMap model (Commands.copy model.core)
                 |> Tuple.mapFirst (eventLog "copied" s)
 
         Cutted s ->
-            cut model
+            updateMap model (Commands.cut model.core)
                 |> Tuple.mapFirst (eventLog "cutted" s)
-
 
         -- View Operation Event
 
@@ -152,49 +121,53 @@ update msg model =
             compositionEnd data model
 
         FocusIn _ ->
-            ( { model | focus = True }
-            , Task.perform (\_ -> IgnoreResult) (elaborateInputArea (inputAreaID model)) )
+            let
+                cm = model.core
+            in
+            ( { model | core = {cm | focus = True}  }
+            , Task.perform (\_ -> IgnoreResult) (elaborateInputArea (inputAreaID model.core))
+            )
 
         FocusOut _ ->
-            ( { model|focus = False }
-            , Cmd.none)
+            let
+                cm = model.core
+            in
+            ( { model| core = {cm| focus = False }}
+            , Cmd.none
+            )
 
-        SetFocus ->
+        ClickDisplay ->
             ( model
                 |> eventLog "setfocus" ""
-            , Task.perform (\_ -> IgnoreResult) (doFocus <| inputAreaID model) )
+            , Task.perform (\_ -> IgnoreResult) (doFocus <| inputAreaID model.core)
+            )
 
         DragStart row xy ->
             let
-                calc_w  = calcTextWidth (rulerID model)
+                calc_w  = calcTextWidth (rulerID model.core)
                 calc_col = (\ ln c x ->
                               if (calc_w (String.left c ln)) > x || String.length ln < c  then c - 1
                               else calc_col ln (c + 1)  x)
 
-                ln = Buffer.line row model.buffer.contents |> Maybe.withDefault ""
-                rect = getBoundingClientRect (codeLayerID model)
+                ln = Buffer.line row model.core.buffer.contents |> Maybe.withDefault ""
+                rect = getBoundingClientRect (codeLayerID model.core)
 
                 col = (calc_col ln 0 (xy.x - rect.left))
 
-                b1 = model.buffer
+                b1 = model.core.buffer
                 b2 = { b1 | cursor = Buffer.Cursor row col }
 
-
+                coremodel = model.core
             in
-                ( { model | buffer = b2 }
+                ( { model | core = {coremodel |buffer = b2} }
                   |> eventLog "dragstart" ("pos=" ++ (toString xy.x) ++ "," ++ (toString xy.y)
                                                ++ "; offsetx=" ++ (toString (xy.x - rect.left))
                                                ++ "; row=" ++ (toString row)
                                                ++ "; calced_col=" ++ (toString col)
                                           )
                   |> blinkBlock
-                , Task.perform (\_ -> IgnoreResult) (doFocus <| inputAreaID model) -- firefox 限定で、たまーに、SetFocus が来ないことがあるので、ここでもやっとく。
+                , Task.perform (\_ -> IgnoreResult) (doFocus <| inputAreaID model.core) -- firefox 限定で、たまーに、SetFocus が来ないことがあるので、ここでもやっとく。
                 )
-
-        Tick new_time ->
-            ( {model | blink = blinkTransition model.blink }
-            , Cmd.none )
-
 
 
 input: String -> Model -> (Model, Cmd Msg)
@@ -205,75 +178,21 @@ input s model =
               |> eventLog "input (ignored)" s
             , Cmd.none )
         False ->
-            insert (String.right 1 s) model
+            updateMap model (Commands.insert (String.right 1 s) model.core)
                 |> Tuple.mapFirst (eventLog "input" (String.right 1 s))
 
 
-keymapper : (Bool, Bool, Bool, Int) -> (Model -> (Model, Cmd Msg))
-keymapper (ctrl, alt, shift, keycode) =
-    let
-        keymap = [ {ctrl=False, alt=False, shift=False, code= 37, f=moveBackward } -- '←'
-                 , {ctrl=False, alt=False, shift=False, code= 38, f=movePrevios }  -- '↑'
-                 , {ctrl=False, alt=False, shift=False, code= 39, f=moveForward }  -- '→'
-                 , {ctrl=False, alt=False, shift=False, code= 40, f=moveNext }     -- '↓'
-                 , {ctrl=False, alt=False, shift=False, code= 36, f=moveBOL }      -- Home
-                 , {ctrl=False, alt=False, shift=False, code= 35, f=moveEOL }      -- End
-
-                 , {ctrl=False, alt=False, shift=True , code= 37, f=selectBackward } -- 'S-←'
-                 , {ctrl=False, alt=False, shift=True , code= 38, f=selectPrevios }  -- 'S-↑'
-                 , {ctrl=False, alt=False, shift=True , code= 39, f=selectForward }  -- 'S-→'
-                 , {ctrl=False, alt=False, shift=True , code= 40, f=selectNext }     -- 'S-↓' 
-
-                 , {ctrl=False, alt=False, shift=False, code=  8, f=backspace } -- BS
-                 , {ctrl=False, alt=False, shift=False, code= 46, f=delete }    -- DEL
-
-                 -- note: C-c, C-x, C-v は、システムのクリップボードと連携したいので、
-                 --       ブラウザの ClipboardEvent (copy, cut, paste)を発火させるため、ここでは何もしない
-
-                 , {ctrl=True , alt=False, shift=False, code= 90, f= undo }
-
-                 -- emacs like binds
-                 , {ctrl=True , alt=False, shift=False, code= 70, f=moveForward }  -- 'C-f'
-                 , {ctrl=True , alt=False, shift=False, code= 66, f=moveBackward } -- 'C-b'
-                 , {ctrl=True , alt=False, shift=False, code= 78, f=moveNext }     -- 'C-n'
-                 , {ctrl=True , alt=False, shift=False, code= 80, f=movePrevios }  -- 'C-p'
-                 , {ctrl=True , alt=False, shift=False, code= 65, f=moveBOL }      -- 'C-a'
-                 , {ctrl=True , alt=False, shift=False, code= 69, f=moveEOL }      -- 'C-e'
-                 , {ctrl=True , alt=False, shift=False, code= 72, f=backspace }    -- 'C-h'
-                 , {ctrl=True , alt=False, shift=False, code= 68, f=delete }       -- 'C-d'
-                 , {ctrl=False, alt=True , shift=False, code= 87, f=copy }         -- 'M-w' (注: クリップボード連携なし)
-                 , {ctrl=True , alt=False, shift=False, code= 87, f=cut  }         -- 'C-w' (注: クリップボード連携なし)
-                 , {ctrl=True , alt=False, shift=False, code= 77, f= insert "\n" } -- 'C-m'
-                 , {ctrl=True , alt=False, shift=False, code= 89, f=(\m -> paste m.copyStore m) } -- 'C-y'
-                 ]
-
-        search = (\ (ctrl, alt, shift, keycode) l ->
-                      case l of
-                          [] ->
-                              Nothing
-                          x :: xs ->
-                              if (keycode == x.code)
-                                  && (ctrl == x.ctrl) && (alt == x.alt) && (shift == x.shift)
-                              then Just x.f
-                              else search (ctrl, alt, shift, keycode) xs
-                 )
-    in
-        -- note: 4つ以上の組でのパターンマッチを記述するとビルド時間が非常に長くなる問題があるので、(elm 0.18)
-        --       パターンマッチでは書かない
-
-        -- note: Dict にすべきか悩んだが、
-        --       モディファイヤ * を導入するかも、なのと
-        --       複数のkeymap を合成して早いものがちマッチとかやるかも、なのと
-        --       nストロークキーマッチをやるかも、なので
-        --       線形サーチで書いている
-        search (ctrl, alt, shift, keycode) keymap
-            |> Maybe.withDefault (\m -> (m, Cmd.none) )
-                                  
-
 keyDown : KeyboardEvent -> Model -> (Model, Cmd Msg)
 keyDown e model =
-    keymapper (e.ctrlKey, e.altKey, e.shiftKey, e.keyCode) model
-        |> Tuple.mapFirst (eventLog "keydown" (keyboarEvent_toString e))
+    case KeyBind.find (e.ctrlKey, e.altKey, e.shiftKey, e.keyCode) model.keymap of
+        Just editorcmd ->
+            updateMap model (editorcmd model.core)
+                |> Tuple.mapFirst (eventLog "keydown" (keyboarEvent_toString e))
+        Nothing ->
+            ( model
+                |> eventLog "keydown" (keyboarEvent_toString e)
+            , Cmd.none
+            )
 
 keyPress : Int -> Model -> (Model, Cmd Msg)
 keyPress code model =
@@ -291,18 +210,18 @@ compositionStart : String -> Model -> (Model, Cmd Msg)
 compositionStart data model =
     -- note: この data は入力された文字列 **ではない**
     ( { model
-          | buffer = buffer_delete_selection model.buffer
-          , compositionPreview = Just ""
+          | core = Core.compositionStart model.core
       }
-      |> composerEnable ""
-      |> blinkBlock
+      |> composerEnable
       |> eventLog "compositoinstart" data
     , Cmd.none
     )
 
 compositionUpdate : String -> Model -> (Model, Cmd Msg)
 compositionUpdate data model =
-    ( { model | compositionPreview = Just data }
+    ( { model
+          | core = Core.compositionUpdate data model.core
+      }
       |> blinkBlock
       |> eventLog "compositionupdate" data
     , Cmd.none
@@ -313,13 +232,14 @@ compositionEnd data model =
     -- note: 変換プレビューのクリアはするが、
     --        firefox ではこの後 input イベントがくるので、
     --        それを無視する為 enable-conposerは立てたままにする (keypressイベントで解除する、そちらを参照)
-    { model
-        | buffer = buffer_insert data model.buffer
-        , compositionPreview = Nothing
-    }
-        |> blinkBlock
-        |> eventLog "compositionend" data
-        |> withEnsureVisibleCmd
+    ( { model
+          | core = Core.compositionEnd data model.core
+      }
+      |> blinkBlock
+      |> eventLog "compositionend" data
+    , Cmd.none
+    )
+--        |> withEnsureVisibleCmd --TODO
 
 ------------------------------------------------------------
 -- control state update
@@ -332,362 +252,46 @@ eventLog ev data model =
     in
         { model | event_log = Maybe.andThen (\logs -> Just (s :: logs)) model.event_log }
 
-composerEnable : String -> Model -> Model
-composerEnable data model =
+blinkBlock : Model -> Model
+blinkBlock model =
     { model
-        | compositionPreview = Just data
-        , enableComposer = True
+        | core = Core.blinkBlock model.core
+    }
+
+composerEnable : Model -> Model
+composerEnable model =
+    { model
+        | enableComposer = True
     }
 
 composerDisable : Model -> Model
 composerDisable model =
     { model
-        | compositionPreview = Nothing
-        , enableComposer = False
+        | enableComposer = False
     }
 
-------------------------------------------------------------
--- scroll command generator
-------------------------------------------------------------
-
-withEnsureVisibleCmd : Model -> (Model, Cmd Msg)
-withEnsureVisibleCmd model =
-    ( model
-    , ensureVisible model (\_ -> IgnoreResult)
-    )
-
-ensureVisible : Model -> (Bool -> msg) -> Cmd msg
-ensureVisible model tagger =
-    Cmd.batch
-        [ calcVScrollPos model
-              |> Maybe.andThen
-                  (\n -> Just <| Task.perform tagger (setScrollTop (frameID model) n))
-              |> Maybe.withDefault Cmd.none
-        , calcHScrollPos model
-              |> Maybe.andThen
-                  (\n -> Just <| Task.perform tagger (setScrollLeft (frameID model) n))
-              |> Maybe.withDefault Cmd.none
-        ]
-
-calcVScrollPos : Model -> Maybe Int
-calcVScrollPos model =
-    let
-        frameRect  = getBoundingClientRect <| frameID model
-        cursorRect = getBoundingClientRect <| cursorID model
-        scrtop = getScrollTop (frameID model)
-
-        margin = cursorRect.height * 3
-    in
-        if  cursorRect.top - margin < frameRect.top then
-            Just ( scrtop + (cursorRect.top - frameRect.top ) - margin)
-        else
-            if  cursorRect.bottom + margin > frameRect.bottom then
-                Just ( scrtop + (cursorRect.bottom - frameRect.bottom ) + margin)
-            else 
-                Nothing
-
-calcHScrollPos : Model -> Maybe Int
-calcHScrollPos model =
-    let
-        frameRect  = getBoundingClientRect <| frameID model
-        cursorRect = getBoundingClientRect <| cursorID model
-        scrleft    = getScrollLeft (frameID model)
-
-        margin = cursorRect.height * 3
-    in
-        if cursorRect.left - margin < frameRect.left then
-            Just ( scrleft + (cursorRect.left - frameRect.left ) - margin)
-        else
-            if  cursorRect.right + margin > frameRect.right then
-                Just ( scrleft + (cursorRect.right - frameRect.right ) + margin)
-            else 
-                Nothing
-
 
 ------------------------------------------------------------
--- update > cursor
-------------------------------------------------------------
-
--- Tools
-
-moveF : (Buffer.Model -> Buffer.Model) -> Model -> (Model, Cmd Msg)
-moveF f model =
-    { model | buffer = f model.buffer }
-        |> selectionClear
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
--- API
-
-moveForward : Model -> (Model, Cmd Msg)
-moveForward = moveF Buffer.moveForward
-
-moveBackward : Model -> (Model, Cmd Msg)
-moveBackward = moveF Buffer.moveBackward
-
-movePrevios : Model -> (Model, Cmd Msg)
-movePrevios = moveF Buffer.movePrevios
-
-moveNext : Model -> (Model, Cmd Msg)
-moveNext = moveF Buffer.moveNext
-
-moveBOL : Model -> (Model, Cmd Msg)
-moveBOL = moveF (\m -> {m | cursor = Buffer.Cursor m.cursor.row 0})
-
-moveEOL : Model -> (Model, Cmd Msg)
-moveEOL = moveF (\m ->
-                     {m | cursor = Buffer.Cursor m.cursor.row (Buffer.line m.cursor.row m.contents
-                                                              |> Maybe.withDefault ""
-                                                              |> String.length
-                                                              )
-                     }
-                )
-
-------------------------------------------------------------
--- update > selection
+-- update > (extra)
 ------------------------------------------------------------
 
 -- Tools
 
 selectionClear : Model -> Model
 selectionClear model =
-    { model | buffer = Buffer.selectionClear model.buffer }
-
-selectF : (Buffer.Model -> Buffer.Model) -> Model -> (Model, Cmd Msg)
-selectF f model =
-    { model | buffer = f model.buffer }
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
--- API
-
-selectBackward: Model -> (Model, Cmd Msg)
-selectBackward = selectF Buffer.selectBackward
-
-selectForward: Model -> (Model, Cmd Msg)
-selectForward = selectF Buffer.selectForward
-
-selectPrevios: Model -> (Model, Cmd Msg)
-selectPrevios = selectF Buffer.selectPrevios
-
-selectNext: Model -> (Model, Cmd Msg)
-selectNext = selectF Buffer.selectNext
-
-
-------------------------------------------------------------
--- update > edit
-------------------------------------------------------------
-
--- Tools
-
-editF : (Buffer.Model -> Buffer.Model) -> Model -> (Model, Cmd Msg)
-editF f model =
-    { model | buffer = f model.buffer }
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
-buffer_insert : String -> Buffer.Model -> Buffer.Model
-buffer_insert text bufmodel=
-    case bufmodel.selection of
-        Nothing ->
-            Buffer.insert (Buffer.nowCursorPos bufmodel) text bufmodel
-        Just s ->
-            bufmodel
-                |> Buffer.deleteRange s
-                |> Buffer.selectionClear
-                |> (\m -> Buffer.insert (Buffer.nowCursorPos m) text m)
-
-buffer_backspace : Buffer.Model -> Buffer.Model
-buffer_backspace bufmodel =
-    case bufmodel.selection of
-        Nothing ->
-            Buffer.backspace (Buffer.nowCursorPos bufmodel) bufmodel
-        Just s ->
-            bufmodel
-                |> Buffer.deleteRange s
-                |> Buffer.selectionClear
-
-buffer_delete : Buffer.Model -> Buffer.Model
-buffer_delete bufmodel =
-    case bufmodel.selection of
-        Nothing ->
-            Buffer.delete (Buffer.nowCursorPos bufmodel) bufmodel
-        Just s ->
-            bufmodel
-                |> Buffer.deleteRange s
-                |> Buffer.selectionClear
-
-buffer_delete_selection : Buffer.Model -> Buffer.Model
-buffer_delete_selection bufmodel =
-    case bufmodel.selection of
-        Nothing ->
-            bufmodel
-        Just s  ->
-            bufmodel
-                |> Buffer.deleteRange s
-                |> Buffer.selectionClear
-
--- API
-
-insert: String -> Model-> (Model, Cmd Msg)
-insert text = editF (buffer_insert text)
-
-backspace: Model -> (Model, Cmd Msg)
-backspace = editF buffer_backspace
-
-delete: Model ->  (Model, Cmd Msg)
-delete = editF buffer_delete
-
-
--- API (Extra: 場所指定して編集)
-
-insertPos: (Int, Int) -> String -> Model -> (Model, Cmd Msg)
-insertPos (row, col) text  model =
-    { model | buffer = Buffer.insert (row, col) text model.buffer }
-        |> selectionClear
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
-deletePos: (Int, Int) -> Model -> (Model, Cmd Msg)
-deletePos (row, col) model =
-    { model | buffer = Buffer.delete (row, col) model.buffer}
-        |> selectionClear
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
-deleteRange: Buffer.Range -> Model -> (Model, Cmd Msg)
-deleteRange selection model =
-    { model | buffer = Buffer.deleteRange selection model.buffer}
-        |> selectionClear
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
-
-------------------------------------------------------------
--- update > undo / redo
-------------------------------------------------------------
-
--- API
-
-undo : Model -> (Model, Cmd Msg)
-undo model =
-    { model | buffer = Buffer.undo model.buffer }
-        |> selectionClear
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
-
-------------------------------------------------------------
--- update > clipboard action
-------------------------------------------------------------
-
--- API (for User and Browser's clipboard action (Copied, Cutted, Pasted (custom events)) )
-
-copy : Model -> (Model, Cmd Msg)
-copy model =
-    -- note: ブラウザのセキュリティ制約により、sytem の clipboard  にはコピーされません
-    ( case model.buffer.selection of
-          Nothing -> model
-          Just sel ->
-          { model
-              | copyStore = Buffer.readRange sel model.buffer
-              , buffer = Buffer.selectionClear model.buffer
-          }
-    )
-        |> blinkBlock
-        |> (\m -> (m, Cmd.none))
-
-
-cut : Model -> (Model, Cmd Msg)
-cut model =
-    -- note: ブラウザのセキュリティ制約により、sytem の clipboard  にはコピーされません
-    ( case model.buffer.selection of
-          Nothing -> model
-          Just sel ->
-          { model
-              | copyStore = Buffer.readRange sel model.buffer
-              , buffer = model.buffer |> Buffer.deleteRange sel |> Buffer.selectionClear
-          }
-    )
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
-paste : String -> Model -> (Model, Cmd Msg)
-paste text model =
-    { model
-        | buffer = model.buffer
-                       |> Buffer.insert (Buffer.nowCursorPos model.buffer) text
-                       |> Buffer.selectionClear
-        , copyStore = text  -- clipboard経由のペーストもあるので、copyStoreを更新しておく
-    }
-        |> blinkBlock
-        |> withEnsureVisibleCmd
-
-
-
--- API (Extra: 場所を指定して編集)
-
-copyRange : Model -> Buffer.Range -> (Model, Cmd Msg)
-copyRange model selection =
-    -- note: ブラウザのセキュリティ制約により、sytem の clipboard  にはコピーされません
     let
-        s = Buffer.readRange selection model.buffer
+        coremodel = model.core
     in
-        { model | copyStore = s }
-            |> selectionClear
-            |> blinkBlock
-            |> (\m -> (m, Cmd.none))
-
-cutRange : Model -> Buffer.Range -> (Model, Cmd Msg)
-cutRange model selection =
-    -- note: ブラウザのセキュリティ制約により、sytem の clipboard  にはコピーされません
-    let
-        s = Buffer.readRange selection model.buffer
-    in
-        { model | copyStore = s
-                , buffer = Buffer.deleteRange selection model.buffer
+        { model
+            | core = { coremodel
+                         | buffer = Buffer.selectionClear coremodel.buffer
+                     }
         }
-        |> selectionClear
-        |> blinkBlock
-        |> withEnsureVisibleCmd
 
-pastePos : Model -> (Int, Int) -> String -> (Model, Cmd Msg)
-pastePos model (row, col) text =
-    { model | buffer = Buffer.insert (row, col) text model.buffer 
-            , copyStore = text  -- clipboard経由のペーストもあるので、copyStoreを更新しておく
-    }
-    |> selectionClear
-    |> blinkBlock
-    |> withEnsureVisibleCmd
-
-
-------------------------------------------------------------
--- id gen
-------------------------------------------------------------
-
-frameID : Model -> String
-frameID model =
-    model.id ++ "-editor-frame"
-
-sceneID : Model -> String
-sceneID model =
-    model.id ++ "-editor-scene"
-
-codeLayerID : Model -> String
-codeLayerID model =
-    model.id ++ "-editor-codeLayer"
-
-rulerID : Model -> String
-rulerID model =
-    model.id ++ "-editor-ruler"
-
-cursorID : Model -> String
-cursorID model =
-    model.id ++ "-editor-cursor"
-
-inputAreaID : Model -> String
-inputAreaID model =
-    model.id ++ "-editor-input"
+updateMap: Model -> (Core.Model, Cmd Core.Msg) -> (Model, Cmd Msg)
+updateMap model (em, ec) =
+    ( {model | core = em}
+    , Cmd.map CoreMsg ec)
 
 
 ------------------------------------------------------------
@@ -696,7 +300,7 @@ inputAreaID model =
 
 view : Model -> Html Msg
 view model =
-    div [ id <| frameID model
+    div [ id <| frameID model.core
         , style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                 , ("overflow","auto")
                 , ( "position", "relative")
@@ -705,15 +309,15 @@ view model =
                 , ("-moz-user-select", "none")
                 ]
         ]
-        [ div [ id <| sceneID model
+        [ div [ id <| sceneID model.core
               , class "editor-scene"
               , style [ ( "position", "relative") ]
               ]
-              [ presentation model 
+              [ presentation model.core
               ]
         ]
 
-presentation : Model -> Html Msg
+presentation : Core.Model -> Html Msg
 presentation model =
     div [ style [ ("display", "flex"), ("flex-direction", "row"), ("flex-wrap", "nowrap")
                 , ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
@@ -721,13 +325,13 @@ presentation model =
                 ]
         , onFocusIn FocusIn
         , onFocusOut FocusOut
-        , onClick SetFocus
+        , onClick ClickDisplay
         ]
         [ lineNumArea model
         , codeArea model
         ]
 
-lineNumArea : Model -> Html Msg
+lineNumArea : Core.Model -> Html Msg
 lineNumArea model =
     let
         contents = model.buffer.contents
@@ -743,7 +347,7 @@ lineNumArea model =
                              ] [ text (toString n) ])
                 (List.range 1 (List.length contents))
 
-codeArea : Model -> Html Msg
+codeArea : Core.Model -> Html Msg
 codeArea model =
     div [ class "code-area"
         , style [ ("margin", "0"), ("padding", "0"), ("border", "none")
@@ -755,7 +359,7 @@ codeArea model =
         , codeLayer model
         ]
 
-codeLayer: Model  -> Html Msg
+codeLayer: Core.Model  -> Html Msg
 codeLayer model = 
     let
         contents = model.buffer.contents
@@ -797,7 +401,7 @@ codeLayer model =
                               [text ln]
                 ) contents
 
-cursorLayer : Model -> Html Msg
+cursorLayer : Core.Model -> Html Msg
 cursorLayer model =
     div [ class "cursor-layer"
         , style [ ("position", "absolute")
@@ -845,7 +449,7 @@ cursorLayer model =
                ]
         ]
 
-markerLayer: Model -> Html Msg
+markerLayer: Core.Model -> Html Msg
 markerLayer model =
     case model.buffer.selection of
         Nothing ->
@@ -899,7 +503,7 @@ markerLayer model =
                                       ]
                              ) ms )
 
-pad : Model -> Html msg
+pad : Core.Model -> Html msg
 pad model =
     let
         cur      = model.buffer.cursor
@@ -914,7 +518,7 @@ pad model =
          ]
          [ Buffer.line cur.row contents |> Maybe.withDefault "" |> String.left cur.column |> text ]
 
-padToCursor : (Int, Int) -> Model -> Html msg
+padToCursor : (Int, Int) -> Core.Model -> Html msg
 padToCursor pos model =
     let
         contents = model.buffer.contents
@@ -959,7 +563,7 @@ compositionPreview compositionData =
         Nothing ->
             text ""
 
-cursorView : Model -> Html msg
+cursorView : Core.Model -> Html msg
 cursorView model =
     let
         blink_off = (\blnk -> case blnk of
@@ -983,8 +587,8 @@ cursorView model =
 ------------------------------------------------------------
 
 subscriptions : Model -> Sub Msg
-subscriptions model = 
-    Sub.batch [ Time.every (0.5 * second) Tick ]
+subscriptions model =
+    Sub.batch [ Sub.map CoreMsg  (Core.subscriptions model.core) ]
 
 
 ------------------------------------------------------------
@@ -1108,13 +712,13 @@ elaborateInputArea: String  -> Task Never Bool
 elaborateInputArea input_area_id =
     Task.succeed (Native.Mice.elaborateInputArea input_area_id)
 
-setScrollTop : String -> Int -> Task Never Bool
-setScrollTop id pixels =
-    Task.succeed (Native.Mice.setScrollTop id pixels)
+--setScrollTop : String -> Int -> Task Never Bool
+--setScrollTop id pixels =
+--    Task.succeed (Native.Mice.setScrollTop id pixels)
 
-setScrollLeft : String -> Int -> Task Never Bool
-setScrollLeft id pixels =
-    Task.succeed (Native.Mice.setScrollLeft id pixels)
+--setScrollLeft : String -> Int -> Task Never Bool
+--setScrollLeft id pixels =
+--    Task.succeed (Native.Mice.setScrollLeft id pixels)
 
 
 -- Function
@@ -1136,12 +740,12 @@ type alias Rect =
 getBoundingClientRect: String -> Rect
 getBoundingClientRect id = Native.Mice.getBoundingClientRect id
 
-getScrollTop: String -> Int
-getScrollTop id = Native.Mice.getScrollTop id
+-- getScrollTop: String -> Int
+-- getScrollTop id = Native.Mice.getScrollTop id
 
-getScrollLeft: String -> Int
-getScrollLeft id = Native.Mice.getScrollLeft id
+-- getScrollLeft: String -> Int
+-- getScrollLeft id = Native.Mice.getScrollLeft id
 
-getScrollHeight : String -> Int
-getScrollHeight id = Native.Mice.getScrollHeight
+-- getScrollHeight : String -> Int
+-- getScrollHeight id = Native.Mice.getScrollHeight
 
