@@ -6,7 +6,7 @@ module TextEditor.KeyBind exposing
     , emacsLike
     )
 
-import TextEditor.Commands as EditorCmds
+import TextEditor.Core.Commands as EditorCmds
 import TextEditor.Core as Core  exposing (Model, Msg)
 
 

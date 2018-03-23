@@ -1,4 +1,4 @@
-module TextEditor.Commands exposing
+module TextEditor.Core.Commands exposing
     ( moveForward
     , moveBackward
     , movePrevios

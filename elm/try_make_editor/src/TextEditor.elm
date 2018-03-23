@@ -17,7 +17,7 @@ import Task exposing (Task)
 
 import TextEditor.Buffer as Buffer
 import TextEditor.Core as Core exposing (..)
-import TextEditor.Commands as Commands
+import TextEditor.Core.Commands as Commands
 import TextEditor.KeyBind as KeyBind
 
 

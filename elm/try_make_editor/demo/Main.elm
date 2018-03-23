@@ -62,48 +62,45 @@ init =
 
 
 
-updateMap: Model -> (Core.Model, Cmd Core.Msg) -> (Model, Cmd Msg)
-updateMap model (cm, cc) =
-    let
-        (em, ec) = Editor.updateMap model.editor (cm, cc)
-    in
-        ( {model | editor = em}
-        , Cmd.map EditorMsg ec
-        )
+updateMap: Model -> (Editor.Model, Cmd Editor.Msg) -> (Model, Cmd Msg)
+updateMap model (em, ec) =
+    ( {model | editor = em}
+    , Cmd.map EditorMsg ec
+    )
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         MoveForward ->
-            updateMap model (Commands.moveForward model.editor.core)
+            updateMap model (Commands.moveForward model.editor)
 
         MoveBackword ->
-            updateMap model (Commands.moveBackward model.editor.core)
+            updateMap model (Commands.moveBackward model.editor)
 
         MovePrevios ->
-            updateMap model (Commands.movePrevios model.editor.core)
+            updateMap model (Commands.movePrevios model.editor)
 
         MoveNext ->
-            updateMap model (Commands.moveNext model.editor.core)
+            updateMap model (Commands.moveNext model.editor)
 
         Backspace ->
-            updateMap model (Commands.backspace model.editor.core)
+            updateMap model (Commands.backspace model.editor)
 
         Delete ->
-            updateMap model (Commands.delete model.editor.core)
+            updateMap model (Commands.delete model.editor)
 
         Copy ->
-            updateMap model (Commands.copy model.editor.core)
+            updateMap model (Commands.copy model.editor)
 
         Cut ->
-            updateMap model (Commands.cut model.editor.core)
+            updateMap model (Commands.cut model.editor)
 
         Pasete ->
-            updateMap model (Commands.paste model.editor.core.copyStore model.editor.core)
+            updateMap model (Commands.paste model.editor)
 
         Undo ->
-            updateMap model (Commands.undo model.editor.core)
+            updateMap model (Commands.undo model.editor)
 
         SetEventlogEnable True ->
             let
