@@ -30,26 +30,24 @@ type alias Model =
     , fontFamily : { index : String, list : List String }
     , fontSize : { index : String, list : List String }
 
+    , pane : Pane
     , swkeyboard : SoftwareKeyboard.Model
     }
 
+type Pane
+    = NoPane
+    | DebugPane
+    | KeyboardPane
+
+
 type Msg
-    = MoveForward
-    | MoveBackword
-    | MovePrevios
-    | MoveNext
-    | Backspace
-    | Delete
-    | Copy
-    | Cut
-    | Pasete
-    | Undo
-    | EditorMsg (Editor.Msg)
+    = EditorMsg (Editor.Msg)
     | SetEventlogEnable Bool
     | ChangeBGColor String
     | ChangeFGColor String
     | ChangeFontFamily String
     | ChangeFontSize String
+    | ChangePane Pane
     | SWKeyboardMsg (SoftwareKeyboard.Msg)
 
 init : (Model, Cmd Msg)
@@ -62,6 +60,7 @@ init =
               { index = "inherit", list = ["inherit", "black", "white", "aqua", "coral", "midnightblue", "darkslategray", "lavender", "palevioletred", "rosybrown"] }
               { index = "inherit", list = ["inherit", "cursive", "fantasy", "monospace", "sans-serif", "serif"] }
               { index = "inherit", list = ["inherit", "0.5em", "1em", "1.5em", "2em", "3em", "5em", "7em", "10em"] }
+              NoPane
               SoftwareKeyboard.init
         , Cmd.map EditorMsg bc
         )
@@ -78,36 +77,6 @@ updateMap model (em, ec) =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        MoveForward ->
-            updateMap model (Commands.moveForward model.editor)
-
-        MoveBackword ->
-            updateMap model (Commands.moveBackward model.editor)
-
-        MovePrevios ->
-            updateMap model (Commands.movePrevios model.editor)
-
-        MoveNext ->
-            updateMap model (Commands.moveNext model.editor)
-
-        Backspace ->
-            updateMap model (Commands.backspace model.editor)
-
-        Delete ->
-            updateMap model (Commands.delete model.editor)
-
-        Copy ->
-            updateMap model (Commands.copy model.editor)
-
-        Cut ->
-            updateMap model (Commands.cut model.editor)
-
-        Pasete ->
-            updateMap model (Commands.paste model.editor)
-
-        Undo ->
-            updateMap model (Commands.undo model.editor)
-
         SetEventlogEnable True ->
             let
                 em = model.editor
@@ -158,6 +127,11 @@ update msg model =
             , Cmd.none )
 
 
+        ChangePane pane ->
+            ( { model | pane = pane }
+            , Cmd.none
+            )
+
         -- ScenarioPage >> List
         EditorMsg msg ->
             let
@@ -204,10 +178,41 @@ view model =
               ]
               [ Html.map EditorMsg (Editor.view model.editor) ]
         , modeline model
-        , controlPane model
-        , debugPane model
-        , Html.map SWKeyboardMsg (SoftwareKeyboard.view model.swkeyboard)
+        , paneChanger model
+        , case model.pane of
+              NoPane ->
+                  text ""
+              DebugPane ->
+                    debugPane model
+              KeyboardPane ->
+                  Html.map SWKeyboardMsg (SoftwareKeyboard.view model.swkeyboard)
         ]
+
+paneChanger : Model -> Html Msg
+paneChanger model =
+    let
+        tab = \ tgtPane s ->
+              div [ style <| if model.pane == tgtPane
+                             then [("margin", "2px 5px 0 2px"), ("padding", "0 1em"), ("border-width", "1px 1px 0px 1px"), ("border-color", "gray"), ("background-color", "whitesmoke"), ("color", "gray")]
+                             else [("margin", "2px 5px 0 2px"), ("padding", "0 1em"), ("border", "none"), ("background-color", "darkgray"), ("color", "whitesmoke")]
+                  , onClick <| ChangePane tgtPane
+                  ]
+                  [ text s ]
+    in
+    div [ style [ ("display", "flex"), ("flex-direction", "row"), ("align-items", "flex-end")
+                , ("background-color", "darkgray"), ("min-height", "1.5em")
+                ]
+        ]
+        [ div [ style [ ("border", "1px solid gray"), ("color", "gray"), if model.pane == NoPane then ("background-color", "inherit") else ("background-color", "silver")
+                      , ("height", "1em"), ("width", "1em"), ("margin", "3px 1.5em 3px 0.5em"), ("text-align", "center")
+                      ]
+              , onClick (ChangePane NoPane)
+              ]
+              [text "x"]
+        , tab DebugPane "debug"
+        , tab KeyboardPane "keyboard"
+        ]
+
 
 styleConfig : Model -> Html Msg
 styleConfig model =
@@ -267,27 +272,6 @@ modeline model =
             , text <| toSelectionString model.editor.core.buffer.selection
             ]
 
-controlPane : Model -> Html Msg
-controlPane model =
-    div [ id "control-pane"
-        , style [("background-color", "silver")]
-        ]
-        [ button [ onClick MoveBackword ] [text "←"]
-        , button [ onClick MovePrevios  ] [text "↑"]
-        , button [ onClick MoveNext     ] [text "↓"]
-        , button [ onClick MoveForward  ] [text "→"]
-        , text "|"
-        , button [ onClick Backspace    ] [text "BS"]
-        , button [ onClick Delete       ] [text "DEL"]
-        , text "|"
-        , button [ onClick Copy         ] [text "Copy"]
-        , button [ onClick Cut          ] [text "Cut"]
-        , button [ onClick Pasete       ] [text "Paste"]
-        , text "|"
-        , button [ onClick Undo         ] [text "Undo"]
-        , text "|"
-        , input [ type_ "file", id "file_open" ][]
-        ]
 
 debugPane : Model -> Html Msg
 debugPane model =
