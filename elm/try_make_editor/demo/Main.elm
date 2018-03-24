@@ -2,7 +2,6 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Encode as Encode
-import Json.Decode as Json
 
 import TextEditor as Editor
 import TextEditor.Core as Core
@@ -12,6 +11,7 @@ import TextEditor.KeyBind as KeyBind
 
 import EditorDebugger
 import SoftwareKeyboard
+import StyleSetter
 
 main : Program Never Model Msg
 main =
@@ -24,15 +24,10 @@ main =
 
 type alias Model =
     { editor : Editor.Model
-    , raw_buf : String
-
-    , bgColor : { index : String, list : List String }
-    , fgColor : { index : String, list : List String }
-    , fontFamily : { index : String, list : List String }
-    , fontSize : { index : String, list : List String }
 
     , pane : Pane
     , swkeyboard : SoftwareKeyboard.Model
+    , style : StyleSetter.Model
     }
 
 type Pane
@@ -43,26 +38,20 @@ type Pane
 
 type Msg
     = EditorMsg (Editor.Msg)
-    | ChangeBGColor String
-    | ChangeFGColor String
-    | ChangeFontFamily String
-    | ChangeFontSize String
     | ChangePane Pane
     | DebuggerMsg (EditorDebugger.Msg)
     | SWKeyboardMsg (SoftwareKeyboard.Msg)
+    | StyleSetterMsg (StyleSetter.Msg)
 
 init : (Model, Cmd Msg)
 init =
     let
         (bm, bc) = Editor.init "editor-sample1" (KeyBind.basic ++ KeyBind.gates ++ KeyBind.emacsLike) ""
     in
-        ( Model bm ""
-              { index = "inherit", list = ["inherit", "black", "white", "linen", "dimgray", "whitesmoke", "midnightblue", "darkolivegreen", "darkslategray", "lavender"] }
-              { index = "inherit", list = ["inherit", "black", "white", "aqua", "coral", "midnightblue", "darkslategray", "lavender", "palevioletred", "rosybrown"] }
-              { index = "inherit", list = ["inherit", "cursive", "fantasy", "monospace", "sans-serif", "serif"] }
-              { index = "inherit", list = ["inherit", "0.5em", "1em", "1.5em", "2em", "3em", "5em", "7em", "10em"] }
+        ( Model bm
               NoPane
               SoftwareKeyboard.init
+              StyleSetter.init
         , Cmd.map EditorMsg bc
         )
 
@@ -78,38 +67,6 @@ updateMap model (em, ec) =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        ChangeBGColor s ->
-            ( { model
-                  | bgColor = { index = s
-                              , list = model.bgColor.list
-                              }
-              }
-            , Cmd.none )
-
-        ChangeFGColor s ->
-            ( { model
-                  | fgColor = { index = s
-                              , list = model.fgColor.list
-                              }
-              }
-            , Cmd.none )
-
-        ChangeFontFamily s ->
-            ( { model
-                  | fontFamily = { index = s
-                                 , list = model.fontFamily.list
-                                 }
-              }
-            , Cmd.none )
-        ChangeFontSize s ->
-            ( { model
-                  | fontSize = { index = s
-                               , list = model.fontSize.list
-                               }
-              }
-            , Cmd.none )
-
-
         ChangePane pane ->
             ( { model | pane = pane }
             , Cmd.none
@@ -145,6 +102,18 @@ update msg model =
                             ]
                 )
 
+        StyleSetterMsg smsg ->
+            let
+                (m, c) = StyleSetter.update smsg model.style
+            in
+                ( { model
+                      | style = m
+                  }
+                , Cmd.map StyleSetterMsg c
+                )
+
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch [ Sub.map EditorMsg  (Editor.subscriptions model.editor) ]
@@ -160,10 +129,10 @@ view model =
         , div [ style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                       , ("overflow","hidden")
                       , ("flex-grow", "8")
-                      , ("color", model.fgColor.index)
-                      , ("background-color", model.bgColor.index)
-                      , ("font-family", model.fontFamily.index)
-                      , ("font-size", model.fontSize.index)
+                      , ("color", model.style.fgColor.index)
+                      , ("background-color", model.style.bgColor.index)
+                      , ("font-family", model.style.fontFamily.index)
+                      , ("font-size", model.style.fontSize.index)
                       ]
               ]
               [ Html.map EditorMsg (Editor.view model.editor) ]
@@ -177,7 +146,7 @@ view model =
               KeyboardPane ->
                   Html.map SWKeyboardMsg (SoftwareKeyboard.view model.swkeyboard)
               StyleEditorPane ->
-                  styleConfig model
+                  Html.map StyleSetterMsg (StyleSetter.view model.style)
         ]
 
 paneChanger : Model -> Html Msg
@@ -207,35 +176,6 @@ paneChanger model =
         ]
 
 
-styleConfig : Model -> Html Msg
-styleConfig model =
-    div [ style [ ("display", "flex"), ("flex-direction", "row"), ("justify-content", "space-between"), ("align-items", "center")
-                , ("height", "2em"), ("flex-grow", "2"), ("background-color", "whitesmoke"), ("color", "gray")
-                ]
-        ]
-        [ div [] [ span [] [text "background-color: "]
-                 , selectList model.bgColor.index model.bgColor.list ChangeBGColor
-                 ]
-        , div [] [ span [] [text "color: "]
-                 , selectList model.fgColor.index model.fgColor.list ChangeFGColor
-                 ]
-        , div [] [ span [] [text "font-family: "]
-                 , selectList model.fontFamily.index model.fontFamily.list ChangeFontFamily
-                 ]
-        , div [] [ span [] [text "font-size: "]
-                 , selectList model.fontSize.index model.fontSize.list ChangeFontSize
-                 ]
-        ]
-
-selectList: String -> List String -> (String -> msg) -> Html msg
-selectList idx values tagger =
-    select [on "change" (Json.map tagger (Json.at ["target","value"] Json.string))]
-        ( List.map
-              (\ v -> option
-                   [ value v , selected (idx == v)]
-                   [ text v ]
-              ) values
-        )
 
 modeline : Model -> Html msg
 modeline model =
