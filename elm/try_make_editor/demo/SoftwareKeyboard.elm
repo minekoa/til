@@ -103,7 +103,7 @@ view model =
         ]
         [ keyboardSwitcher model
         , mainkey model
-        , ctrlkey model
+        , editcmdkey model
         ]
 
 keyboardSwitcher: Model -> Html Msg
@@ -210,9 +210,9 @@ katakanaKeys model =
         ]
 
 
-ctrlkey : Model -> Html Msg
-ctrlkey model =
-    div [ class "kbd_ctrl" ]
+editcmdkey : Model -> Html Msg
+editcmdkey model =
+    div [ class "kbd_editcmd" ]
         [ div [ class "kbd_button"
               , onClick Undo
               ]
