@@ -1,0 +1,51 @@
+
+.software_keyboard {
+  display: flex;
+  flex-direction: row; 
+
+  font-size: 2em;
+}
+
+
+.kbd_switcher {
+
+
+  display: flex;
+  flex-direction: column;
+}
+
+.kbd_mainkey {
+  display: flex;
+  flex-direction: column;
+}
+
+.kbd_mainkey_row {
+  display: flex;
+  flex-direction: row; 
+  height: 2.5em;
+}
+
+.kbd_key {
+    margin: 3px;
+    text-align: center;
+    color: lightslategray;
+    background-color: aliceblue;
+}
+
+
+.kbd_button {
+    color: lightslategray;
+    border: 1px solid lightslategray;
+    text-align: center;
+
+    mim-height: 1.5em;
+    min-width: 4.5em;
+}
+
+.kbd_button_active {
+    color: dodgerblue;
+    border: 1px solid dodgerblue;
+    text-align: center;
+}
+    
+

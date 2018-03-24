@@ -10,6 +10,8 @@ import TextEditor.Commands as Commands
 import TextEditor.Buffer as Buffer
 import TextEditor.KeyBind as KeyBind
 
+import SoftwareKeyboard
+
 main : Program Never Model Msg
 main =
     Html.program
@@ -27,6 +29,8 @@ type alias Model =
     , fgColor : { index : String, list : List String }
     , fontFamily : { index : String, list : List String }
     , fontSize : { index : String, list : List String }
+
+    , swkeyboard : SoftwareKeyboard.Model
     }
 
 type Msg
@@ -46,6 +50,7 @@ type Msg
     | ChangeFGColor String
     | ChangeFontFamily String
     | ChangeFontSize String
+    | SWKeyboardMsg (SoftwareKeyboard.Msg)
 
 init : (Model, Cmd Msg)
 init =
@@ -57,6 +62,7 @@ init =
               { index = "inherit", list = ["inherit", "black", "white", "aqua", "coral", "midnightblue", "darkslategray", "lavender", "palevioletred", "rosybrown"] }
               { index = "inherit", list = ["inherit", "cursive", "fantasy", "monospace", "sans-serif", "serif"] }
               { index = "inherit", list = ["inherit", "0.5em", "1em", "1.5em", "2em", "3em", "5em", "7em", "10em"] }
+              SoftwareKeyboard.init
         , Cmd.map EditorMsg bc
         )
 
@@ -161,6 +167,19 @@ update msg model =
                 , Cmd.map EditorMsg c )
 
 
+        SWKeyboardMsg swmsg ->
+            let
+                (kbd, edt) = SoftwareKeyboard.update swmsg model.swkeyboard model.editor
+            in
+                ( { model
+                      | editor   = Tuple.first edt
+                      , swkeyboard = Tuple.first kbd
+                  }
+                , Cmd.batch [ Cmd.map EditorMsg (Tuple.second edt)
+                            , Cmd.map SWKeyboardMsg (Tuple.second kbd)
+                            ]
+                )
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch [ Sub.map EditorMsg  (Editor.subscriptions model.editor) ]
@@ -187,6 +206,7 @@ view model =
         , modeline model
         , controlPane model
         , debugPane model
+        , Html.map SWKeyboardMsg (SoftwareKeyboard.view model.swkeyboard)
         ]
 
 styleConfig : Model -> Html Msg
