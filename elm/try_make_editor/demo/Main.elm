@@ -38,7 +38,7 @@ type Pane
     = NoPane
     | DebugPane
     | KeyboardPane
-
+    | StyleEditorPane
 
 type Msg
     = EditorMsg (Editor.Msg)
@@ -166,7 +166,6 @@ view model =
                 ]
         ]
         [ h1 [] [text "TextEditor Sample"]
-        , styleConfig model
         , div [ style [ ("margin", "0"), ("padding", "0"), ("width", "100%"), ("height", "100%")
                       , ("overflow","hidden")
                       , ("flex-grow", "8")
@@ -186,6 +185,8 @@ view model =
                     debugPane model
               KeyboardPane ->
                   Html.map SWKeyboardMsg (SoftwareKeyboard.view model.swkeyboard)
+              StyleEditorPane ->
+                  styleConfig model
         ]
 
 paneChanger : Model -> Html Msg
@@ -211,13 +212,14 @@ paneChanger model =
               [text "x"]
         , tab DebugPane "debug"
         , tab KeyboardPane "keyboard"
+        , tab StyleEditorPane "style"
         ]
 
 
 styleConfig : Model -> Html Msg
 styleConfig model =
     div [ style [ ("display", "flex"), ("flex-direction", "row"), ("justify-content", "space-between"), ("align-items", "center")
-                , ("height", "2em"), ("flex-grow", "2"), ("background-color", "lightsteelblue"), ("color", "snow")
+                , ("height", "2em"), ("flex-grow", "2"), ("background-color", "whitesmoke"), ("color", "gray")
                 ]
         ]
         [ div [] [ span [] [text "background-color: "]
