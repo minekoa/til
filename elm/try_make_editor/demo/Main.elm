@@ -10,6 +10,7 @@ import TextEditor.Commands as Commands
 import TextEditor.Buffer as Buffer
 import TextEditor.KeyBind as KeyBind
 
+import EditorDebugger
 import SoftwareKeyboard
 
 main : Program Never Model Msg
@@ -42,12 +43,12 @@ type Pane
 
 type Msg
     = EditorMsg (Editor.Msg)
-    | SetEventlogEnable Bool
     | ChangeBGColor String
     | ChangeFGColor String
     | ChangeFontFamily String
     | ChangeFontSize String
     | ChangePane Pane
+    | DebuggerMsg (EditorDebugger.Msg)
     | SWKeyboardMsg (SoftwareKeyboard.Msg)
 
 init : (Model, Cmd Msg)
@@ -77,24 +78,6 @@ updateMap model (em, ec) =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        SetEventlogEnable True ->
-            let
-                em = model.editor
-            in
-                ( { model
-                      | editor = {em| event_log = Just []}
-                  }
-                , Cmd.none)
-
-        SetEventlogEnable False ->
-            let
-                em = model.editor
-            in
-                ( { model
-                      | editor = {em| event_log = Nothing}
-                  }
-                , Cmd.none)
-
         ChangeBGColor s ->
             ( { model
                   | bgColor = { index = s
@@ -138,8 +121,16 @@ update msg model =
                 (m, c) = Editor.update msg model.editor
             in
                 ( { model | editor = m}
-                , Cmd.map EditorMsg c )
+                , Cmd.map EditorMsg c
+                )
 
+        DebuggerMsg dmsg ->
+            let
+                (em, dc) = EditorDebugger.update dmsg model.editor
+            in
+                ( { model | editor = em }
+                , Cmd.map DebuggerMsg dc
+                )
 
         SWKeyboardMsg swmsg ->
             let
@@ -182,7 +173,7 @@ view model =
               NoPane ->
                   text ""
               DebugPane ->
-                    debugPane model
+                  Html.map DebuggerMsg (EditorDebugger.view model.editor)
               KeyboardPane ->
                   Html.map SWKeyboardMsg (SoftwareKeyboard.view model.swkeyboard)
               StyleEditorPane ->
@@ -275,93 +266,6 @@ modeline model =
             ]
 
 
-debugPane : Model -> Html Msg
-debugPane model =
-    div [ id "debug-pane"
-        , class "hbox"
-        , style [ ("display", "flex")
-                , ("flex-direction", "row")
-                , ("width" , "100%"), ("height", "100%")
-                , ("flex-grow", "3")
-                , ("min-height", "7em")
-                , ("max-height", "14em")
-                ]
-        ]
-        [ div [ id "debug-pane-history"
-              , style [ ("min-width", "8em")
-                      , ("flex-grow", "2")
-                      ]
-              ]
-              [ div [ style [ ("background-color", "whitesmoke"), ("color", "gray"), ("height", "1em")]] [text "history:"]
-              , div
-                  [ style [ ("overflow","scroll"), ("height", "calc( 100% - 1em )") ] ]
-                  ( List.map
-                      (\ c ->
-                           let
-                               pos2str = \ row col -> "(" ++ (toString row) ++ ", " ++ (toString col) ++")" 
-                               celstyle = style [("text-wrap", "none"), ("white-space","nowrap"), ("color", "gray")]
-                           in
-                               case c of
-                                   Buffer.Cmd_Insert (row, col) str ->
-                                       div [celstyle] [ "Ins" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                                   Buffer.Cmd_Backspace (row, col) str ->
-                                       div [celstyle] [ "Bs_" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                                   Buffer.Cmd_Delete (row, col) str ->
-                                       div [celstyle] [ "Del" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                      ) model.editor.core.buffer.history
-                  )
-              ]
-        , div [ class "vbox"
-              , style [ ("flex-grow", "8")
-                      , ("display", "flex"), ("flex-direction", "column")
-                      ]
-              ]
-              [ div [ id "debug-pane-clipboard"
-                    , class "hbox"
-                    , style [ ("flex-grow", "2")
-                            , ("width", "100%")
-                            , ("min-height", "2em")
-                            , ("display", "flex"), ("flex-direction", "row")
-                            ]
-                    ]
-                    [ div [ style [ ("background-color","whitesmoke"), ("color", "gray"), ("width", "10ex")] ] [text "clipboard:"]
-                    , div [ style [ ("overflow","auto"), ("width", "100%"), ("color", "gray") ]
-                          ]
-                          ( List.map
-                                (λ ln-> div [ style [("border-bottom", "1px dotted gainsboro"), ("height", "1em")] ] [ text ln ] )
-                                (String.lines model.editor.core.copyStore)
-                          )
-                    ]
-              , div [ id "debug-pane-eventlog"
-                    , class "hbox"
-                    , style [ ("flex-grow", "8")
-                            , ("width", "100%")
-                            , ("min-height", "2em")
-                            , ("display", "flex"), ("flex-direction", "row")
-                            ]
-                    ]
-                    [ div [ style [ ("background-color","whitesmoke"), ("color", "gray"), ("width", "10ex")] ]
-                          [ div [] [text "eventlog:"]
-                          , div [ onClick (SetEventlogEnable (model.editor.event_log == Nothing))
-                                , style [ ("border", "1px solid gray")
-                                        , ("opacity", if (model.editor.event_log == Nothing) then "0.5" else "1.0" )
-                                        , ("margin", "1ex")
-                                        , ("text-align", "center")
-                                        ]
-                                ]
-                                [text <| if (model.editor.event_log == Nothing) then "OFF" else "ON"]
-                          ]
-                    , div [ style [ ("overflow","scroll")
-                                  , ("width", "calc( 100% - 3px )")
-                                  , ("border-top", "3px solid whitesmoke")
-                                  , ("flex-grow", "8")
-                                  , ("color", "gray")
-                                  ]
-                          ]
-                          ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) (Maybe.withDefault [] model.editor.event_log) )
-                    ]
-              ]
-        ]
 
 
  
