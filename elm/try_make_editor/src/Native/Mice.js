@@ -1,5 +1,5 @@
 
-var _minekoa$project$Native_Mice = function() {
+var _minekoa$elm_text_editor$Native_Mice = function() {
 
     function doFocus(_id) { 
         const element = document.getElementById(_id); 
