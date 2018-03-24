@@ -283,31 +283,34 @@ debugPane model =
                 , ("flex-direction", "row")
                 , ("width" , "100%"), ("height", "100%")
                 , ("flex-grow", "3")
-                , ("min-height", "3em")
-                , ("max-height", "8em")
+                , ("min-height", "7em")
+                , ("max-height", "14em")
                 ]
         ]
         [ div [ id "debug-pane-history"
               , style [ ("min-width", "8em")
-                      , ("overflow","scroll")
                       , ("flex-grow", "2")
                       ]
               ]
-              ( List.map
-                    (\ c ->
-                         let
-                             pos2str = \ row col -> "(" ++ (toString row) ++ ", " ++ (toString col) ++")" 
-                             celstyle = style [("text-wrap", "none"), ("white-space","nowrap"), ("color", "gray")]
-                         in
-                             case c of
-                                 Buffer.Cmd_Insert (row, col) str ->
-                                     div [celstyle] [ "Ins" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                                 Buffer.Cmd_Backspace (row, col) str ->
-                                     div [celstyle] [ "Bs_" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                                 Buffer.Cmd_Delete (row, col) str ->
-                                     div [celstyle] [ "Del" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
-                    ) model.editor.core.buffer.history
-              )
+              [ div [ style [ ("background-color", "whitesmoke"), ("color", "gray"), ("height", "1em")]] [text "history:"]
+              , div
+                  [ style [ ("overflow","scroll"), ("height", "calc( 100% - 1em )") ] ]
+                  ( List.map
+                      (\ c ->
+                           let
+                               pos2str = \ row col -> "(" ++ (toString row) ++ ", " ++ (toString col) ++")" 
+                               celstyle = style [("text-wrap", "none"), ("white-space","nowrap"), ("color", "gray")]
+                           in
+                               case c of
+                                   Buffer.Cmd_Insert (row, col) str ->
+                                       div [celstyle] [ "Ins" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                                   Buffer.Cmd_Backspace (row, col) str ->
+                                       div [celstyle] [ "Bs_" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                                   Buffer.Cmd_Delete (row, col) str ->
+                                       div [celstyle] [ "Del" ++ (pos2str row col) ++ "{" ++ str ++ "}" |> text ]
+                      ) model.editor.core.buffer.history
+                  )
+              ]
         , div [ class "vbox"
               , style [ ("flex-grow", "8")
                       , ("display", "flex"), ("flex-direction", "column")
@@ -321,11 +324,11 @@ debugPane model =
                             , ("display", "flex"), ("flex-direction", "row")
                             ]
                     ]
-                    [ div [ style [ ("background-color","gray"), ("color", "white"), ("width", "10ex")] ] [text "clipboard:"]
-                    , div [ style [ ("overflow","auto"), ("width", "100%") ]
+                    [ div [ style [ ("background-color","whitesmoke"), ("color", "gray"), ("width", "10ex")] ] [text "clipboard:"]
+                    , div [ style [ ("overflow","auto"), ("width", "100%"), ("color", "gray") ]
                           ]
                           ( List.map
-                                (λ ln-> div [ style [("border-bottom", "1px dotted gray"), ("height", "1em")] ] [ text ln ] )
+                                (λ ln-> div [ style [("border-bottom", "1px dotted gainsboro"), ("height", "1em")] ] [ text ln ] )
                                 (String.lines model.editor.core.copyStore)
                           )
                     ]
@@ -337,10 +340,10 @@ debugPane model =
                             , ("display", "flex"), ("flex-direction", "row")
                             ]
                     ]
-                    [ div [ style [ ("background-color","gray"), ("color", "white"), ("width", "10ex")] ]
+                    [ div [ style [ ("background-color","whitesmoke"), ("color", "gray"), ("width", "10ex")] ]
                           [ div [] [text "eventlog:"]
                           , div [ onClick (SetEventlogEnable (model.editor.event_log == Nothing))
-                                , style [ ("border", "1px solid white")
+                                , style [ ("border", "1px solid gray")
                                         , ("opacity", if (model.editor.event_log == Nothing) then "0.5" else "1.0" )
                                         , ("margin", "1ex")
                                         , ("text-align", "center")
@@ -349,9 +352,10 @@ debugPane model =
                                 [text <| if (model.editor.event_log == Nothing) then "OFF" else "ON"]
                           ]
                     , div [ style [ ("overflow","scroll")
-                                  , ("width", "calc( 100% - 2px )")
-                                  , ("border", "1px solid black")
+                                  , ("width", "calc( 100% - 3px )")
+                                  , ("border-top", "3px solid whitesmoke")
                                   , ("flex-grow", "8")
+                                  , ("color", "gray")
                                   ]
                           ]
                           ( List.map (λ ln -> span [ style [("margin-right","0.2em")]] [text ln]) (Maybe.withDefault [] model.editor.event_log) )
