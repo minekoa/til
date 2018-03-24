@@ -70,7 +70,7 @@ type Msg
     | CompositionEnd String
     | FocusIn Bool
     | FocusOut Bool
-    | ClickDisplay
+    | ClickScreen
     | DragStart Int Mouse.Position
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -131,7 +131,7 @@ update msg model =
             , Cmd.none
             )
 
-        ClickDisplay ->
+        ClickScreen ->
             ( model
                 |> eventLog "setfocus" ""
             , Cmd.map CoreMsg (Core.doFocus model.core)
@@ -303,6 +303,7 @@ view model =
                 , ("-webkit-user-select", "none")
                 , ("-moz-user-select", "none")
                 ]
+        , onClick ClickScreen
         ]
         [ div [ id <| sceneID model.core
               , class "editor-scene"
@@ -320,7 +321,6 @@ presentation model =
                 ]
         , onFocusIn FocusIn
         , onFocusOut FocusOut
-        , onClick ClickDisplay
         ]
         [ lineNumArea model
         , codeArea model
@@ -333,7 +333,8 @@ lineNumArea model =
     in
         div [ class "line-num-area"
             , style [ ("text-align", "right")
-                    , ("padding-right", "0.2em")]
+                    , ("padding-right", "0.2em")
+                    ]
             ] <|
             List.map
                 (λ n -> div [ class "line-num"
@@ -346,6 +347,7 @@ codeArea : Core.Model -> Html Msg
 codeArea model =
     div [ class "code-area"
         , style [ ("margin", "0"), ("padding", "0"), ("border", "none")
+                , ("flex-grow", "1") -- "line" の行末以降のタップでもカーソル移動したいので、いっぱいまで伸びるようにしておく
                 ]
         ]
         [ ruler <| rulerID model
@@ -409,8 +411,9 @@ cursorLayer model =
                      , ("flex-wrap", "nowrap")
                      , ("justify-content", "flex-start")
                      , ("height", "1em")
+                     , ("align-items" , "baseline")
 
-                     , ("top" , (model.buffer.cursor.row |> toString) ++ "em")
+                     , ("top" , "calc( " ++ (model.buffer.cursor.row |> toString) ++ "em + 0.1em )")
                      , ("left", "0")
                      ]
                ]
