@@ -2,17 +2,31 @@
 
 ## Ubuntu をインストールする
 
+### 日本語化
+LANGが en_US.UTF-8 になっていたので日本語パックをいれる
 
-## GUI で動くようにする
+```
+sudo apt install language-pack-ja
+sudo update-locale LANG=ja_JP.UTF-8
+```
+
+## GUI で動くようにする (Xserver)
 
 * [Windows Subsystem for Linux + X Windowを1.024倍くらい使いこなすための方法 | Qiita](https://qiita.com/nishemon/items/bb3aca972404f68bfcd6)
-* [http://ikesan009.sakura.ne.jp/2017/07/11/%E3%80%90%E6%96%B0%E3%80%91bash-on-ubuntu-on-windows%E3%81%A7windows%E4%B8%8A%E3%81%ABlinux%E7%92%B0%E5%A2%83%E3%82%92%E5%B0%8E%E5%85%A5%E3%81%99%E3%82%8B/
+* [【新】Bash on Ubuntu on WindowsでWindows上にLinux環境を導入する | Linuxとかプログラミングとか。](http://ikesan009.sakura.ne.jp/2017/07/11/%E3%80%90%E6%96%B0%E3%80%91bash-on-ubuntu-on-windows%E3%81%A7windows%E4%B8%8A%E3%81%ABlinux%E7%92%B0%E5%A2%83%E3%82%92%E5%B0%8E%E5%85%A5%E3%81%99%E3%82%8B/)
+* [お前らのWSLはそれじゃダメだ | たいちょーの雑記](http://xztaityozx.hatenablog.com/entry/2017/12/01/001544)
 
 [VcXsrv公式サイト](https://sourceforge.net/projects/vcxsrv/?source=typ_redirect)にアクセスし、インストーラーをダウンロードしVcXsrvをインストールします。
 
 ダウンロードが完了したら、VcXsrvのインストーラーを起動し、「Select the type of install」では「Full」を選択しインストールを完了させます。
 
 エクスプローラのアドレス欄に `shell:startup` と入力し、開いたフォルダにVcXsrv のショートカットを放り込んで自動起動対象とする。
+
+スケーリングをWindowsにやらせると汚くなるので、
+アプリケーションのプロパティで、[互換性] タブの [高いDPIスケールの動作を上書きします] にチェック (拡大縮小の実行元: アプリケーション) とする
+
+で、VcXsrv の起動オプションに `-dpi 94` のような感じでかけばいいはずなのだけれど、うまく行かんのだよね...
+
 
 ## Mozc の設定
 
@@ -21,13 +35,14 @@ emacs から使うために設定。
 ```
 sudo apt install emacs-mozc
 sudo apt install mozc-utils-gui
-````
+```
 
 でインストール（依存関係にまかせる）
 
 ```
 $ /usr/lib/mozc/mozc_tool --mode=config_dialog
 ```
+
 で起動して、AZIC定義ファイルを読み込む
 
 * [Mozc | archlinux](https://wiki.archlinux.jp/index.php/Mozc#.E3.82.B3.E3.83.9E.E3.83.B3.E3.83.89.E3.83.A9.E3.82.A4.E3.83.B3.E3.81.8B.E3.82.89_Mozc_.E3.83.84.E3.83.BC.E3.83.AB.E3.82.92.E8.B5.B7.E5.8B.95)
@@ -65,3 +80,11 @@ sudo apt install gconf2
 
 
 sudo apt install x11-apps
+
+
+### git に設定
+
+```
+git config --global core.editor "emacs -nw"
+```
+
