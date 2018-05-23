@@ -36,7 +36,7 @@ IME入力中は、
 * keydown イベントにて 229 のコードがくる
 * keypress イベントがこない　(keydownのすぐ後にkeyupがくる)
 
-という振る舞いをする。（firefox以外）
+という振る舞いをする。（firefox以外）…※追記を参照
 
 これにより keydown 229 が来た後の input イベントは「未確定入力」とみなし、変換プレビューに取り込み、また、平常処理の textarea.value を消す処理をしないようにすればいい。
 
@@ -55,6 +55,14 @@ IME入力中は、
 
 
 firefox は、keydown 0 が来て、その後確定するまで一切キーイベントがこない。確定時に keyup 13 がくる、という挙動になっている
+
+#### 追記
+
+[今後 IME 変換中にも keydown、keyup イベントが発生するようになります](https://www.fxsitecompat.com/ja/docs/2018/keydown-and-keyup-events-will-soon-be-fired-during-ime-composition/)
+
+> この新たな挙動は Firefox 61 以降 Nightly と早期 Beta/DevEdition チャンネルでは既に有効化されています。
+
+とのこと
 
 ### 方法2. CompositionEvent を使う
 
