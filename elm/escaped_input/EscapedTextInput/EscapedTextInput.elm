@@ -58,6 +58,9 @@ update msg model =
             )
 
         CompositionEnd s ->
+            -- chrome は、compositionEnd で入力確定しないと他にタイミングがない
+            -- しかし、firefox は、compositionEnd の後に input isComposing=true で確定入力イベントが発火するので
+            -- この作りでは2重入力になってしまう
             ( model
                 |> insert s
                 |> \m -> { m | compositionInput = Nothing }
@@ -204,12 +207,12 @@ view model =
                             ]
                     ]
                     []
-              , div [ style [ ("opacity", "0") ] ] [ text "D" ]
+              , div [ style [ ("opacity", "0") ] ] [ text "D" ] -- 完全にこのレイヤー内の文字が空になってしまうと、なぜかこの要素がレンダリングされなくなってしまうため、ダミーで"D" を出力
               ]
         ]
 
 ------------------------------------------------------------
--- focus
+-- html event
 ------------------------------------------------------------
 
 doFocus: (Bool -> msg) -> Cmd msg
@@ -247,6 +250,7 @@ onKeyUp tagger =
 
 onInputEx : (String -> Bool -> msg) -> Attribute msg
 onInputEx tagger =
+    -- note: chromeにて、改行文字の入力を拾えないため、 onInput の上位互換にはならない (dataプロパティの振る舞いのようだ。おそらくだが）
     on "input" <|
         Json.Decode.map2 tagger
             (Json.Decode.field "data" Json.Decode.string)
