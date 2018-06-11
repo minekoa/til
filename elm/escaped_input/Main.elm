@@ -71,9 +71,11 @@ view model =
                     , td [] [ model.textinput.compositionInput |> Maybe.withDefault "Nothing" |> text ]
                     ]
             , tr [] [ th [] [ "value" |> text ]
-                    , td [] [ model.textinput.value |> text ]
+                    , td [] [ model.textinput.value |> Maybe.withDefault "Nothing" |> text ]
                     ]
             ]
+        , div []
+            (List.map (\elm -> div [] [text elm]) model.textinput.eventLog)
         ]
 
 

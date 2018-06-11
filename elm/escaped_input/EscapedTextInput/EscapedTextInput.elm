@@ -22,7 +22,8 @@ type alias Model =
     , pos  : Int
     , focus : Bool
     , compositionInput : Maybe String
-    , value : String
+    , value : Maybe String
+    , eventLog : List String
     }
 
 init s =
@@ -30,11 +31,14 @@ init s =
     , pos  = 0
     , focus = False
     , compositionInput = Nothing
-    , value = ""
+    , value = Just ""
+    , eventLog = []
     }
 
 type Msg
    = Input String Bool
+   | CompositionStart String
+   | CompositionUpdate String
    | CompositionEnd String
    | KeyDown KeyboardEvent
    | KeyUp Int
@@ -48,13 +52,29 @@ update msg model =
         Input s isComposing ->
             ( if isComposing then
                   { model
-                      | compositionInput = Just s
+                      | eventLog = ("input(isComposing) \"" ++ s ++ "\"") :: model.eventLog
                   }
               else
                   model
                       |> insert s
-                      |> \m -> { m | compositionInput = Nothing }
-            , Debug.log ("input: " ++ (isComposing |> toString) ++ ": " ++ s) Cmd.none
+                      |> \m -> { m
+                                 | compositionInput = Nothing
+                                 , eventLog = ("input \"" ++ s ++ "\"") :: model.eventLog
+                               }
+            , Cmd.none
+            )
+
+        CompositionStart s ->
+            ( { model | eventLog = "compositionStart" :: model.eventLog }
+            , Cmd.none
+            )
+
+        CompositionUpdate s ->
+            ( { model | eventLog = ("compositionUpdate \"" ++ s ++ "\"") :: model.eventLog 
+                      , compositionInput = Just s
+                      , value = Just s
+              }
+            , Cmd.none
             )
 
         CompositionEnd s ->
@@ -63,8 +83,11 @@ update msg model =
             -- この作りでは2重入力になってしまう
             ( model
                 |> insert s
-                |> \m -> { m | compositionInput = Nothing }
-            , Debug.log ("composition-end: " ++ s) Cmd.none
+                |> \m -> { m
+                           | compositionInput = Nothing
+                           , eventLog = ("compositionEnd \"" ++ s ++ "\"") :: model.eventLog
+                         }
+            , Cmd.none
             )
 
         KeyDown e ->
@@ -78,12 +101,14 @@ update msg model =
                         13 -> insert "\n"
                         _  -> identity
                    )
+--                |> \m -> { m | eventLog = ("keydown " ++ (toString e))  :: model.eventLog }
            , Debug.log "keydown" Cmd.none
            )
 
         KeyUp e ->
             (  model
-            , Debug.log ("keyup: " ++ (e |> toString) )Cmd.none
+--                |> \m -> { m | eventLog = ("keyup " ++ (toString e))  :: model.eventLog }
+            , Cmd.none
             )
 
         Focus focus ->
@@ -113,14 +138,14 @@ insert s model =
     { model
         | text = (String.left model.pos model.text) ++ s ++ (String.dropLeft model.pos model.text)
         , pos  = model.pos + (String.length s)
-        , value = ""
+        , value = Just ""
     }
 
 delete : Model -> Model
 delete model =
     { model
         | text = (String.left model.pos model.text) ++ (String.dropLeft (model.pos + 1) model.text)
-        , value = ""
+        , value = Just ""
     }
 
 backspace : Model -> Model
@@ -128,7 +153,7 @@ backspace model =
     { model
         | text = (String.left (model.pos - 1) model.text) ++ (String.dropLeft model.pos model.text)
         , pos  = model.pos - 1
-        , value = ""
+        , value = Just ""
     }
 
 
@@ -190,13 +215,15 @@ view model =
                                      , id "keyboard_controller"
                                      , spellcheck False
                                      , wrap "off"
+                                     , onCompositionStart CompositionStart
+                                     , onCompositionUpdate CompositionUpdate
+                                     , onCompositionEnd CompositionEnd
                                      , onKeyDown KeyDown
                                      , onKeyUp KeyUp
                                      , onInputEx Input
-                                     , onCompositionEnd CompositionEnd
                                      , onFocusIn Focus
                                      , onFocusOut Focus
-                                     , value  model.value
+                                     , model.value |> Maybe.withDefault "" |> value -- どうもCompositionEnd がchromeで発火しない原因になっているようだ
                                      ]
                                      []
                           ]
@@ -256,7 +283,17 @@ onInputEx tagger =
             (Json.Decode.field "data" Json.Decode.string)
             (Json.Decode.field "isComposing" Json.Decode.bool)
 
+onCompositionStart: (String -> msg) -> Attribute msg
+onCompositionStart tagger =
+    on "compositionstart" (Json.Decode.map tagger (Json.Decode.field "data" Json.Decode.string))
+
+onCompositionUpdate: (String -> msg) -> Attribute msg
+onCompositionUpdate tagger =
+    on "compositionupdate" (Json.Decode.map tagger (Json.Decode.field "data" Json.Decode.string))
+
 onCompositionEnd: (String -> msg) -> Attribute msg
 onCompositionEnd tagger =
     on "compositionend" (Json.Decode.map tagger (Json.Decode.field "data" Json.Decode.string))
+
+
 
