@@ -32,6 +32,21 @@ warning: function is never used: `gcd`, #[warn(dead_code)] on by default
 Hello, world!
 ```
 
+
+
+`cargo run` に引数を渡すには、
+
+```
+$ cargo run 42 56
+    Finished dev [unoptimized + debuginfo] target(s) in 0.0 secs
+     Running `target/debug/gcd 42 56`
+The greatest common divisor of [42, 56] is 14
+```
+
+のようにすればいい。
+
+
+
 ユニットテストを実行
 
 ```
