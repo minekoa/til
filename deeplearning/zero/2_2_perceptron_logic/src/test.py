@@ -28,6 +28,23 @@ def AND(x1, x2):
     cond = np.sum(w*x) + b # 行列の掛け算で実装
     return 0 if cond <= 0 else 1
 
+def NAND(x1, x2):
+    x = np.array( [x1, x2] )
+    w = np.array( [-0.5, -0.5] )
+    b = 0.7                     # bias
+
+    cond = np.sum(w*x) + b # 行列の掛け算で実装
+    return 0 if cond <= 0 else 1
+
+def OR(x1, x2):
+    x = np.array( [x1, x2] )
+    w = np.array( [0.5, 0.5] )
+    b = -0.2                     # bias
+
+    cond = np.sum(w*x) + b # 行列の掛け算で実装
+    return 0 if cond <= 0 else 1
+
+
 if __name__ == "__main__":
     def test_equal(title, cond, ans):
         print( "%s: test:\"%s\" .. %s " % ("OK" if cond == ans else "NG", title, cond))
@@ -36,7 +53,15 @@ if __name__ == "__main__":
     tests = [ test_equal( "AND 0 0", AND(0,0), 0),
               test_equal( "AND 0 1", AND(0,1), 0),
               test_equal( "AND 1 0", AND(1,0), 0),
-              test_equal( "AND 1 1", AND(1,1), 1)
+              test_equal( "AND 1 1", AND(1,1), 1),
+              test_equal( "NAND 0 0", NAND(0,0), 1),
+              test_equal( "NAND 0 1", NAND(0,1), 1),
+              test_equal( "NAND 1 0", NAND(1,0), 1),
+              test_equal( "NAND 1 1", NAND(1,1), 0),
+              test_equal( "OR 0 0", OR(0,0), 0),
+              test_equal( "OR 0 1", OR(0,1), 1),
+              test_equal( "OR 1 0", OR(1,0), 1),
+              test_equal( "OR 1 1", OR(1,1), 1)
     ]
     print ( "%d tests: OK %d   NG %d" % (len(tests), len([i for i in tests if i ]), len([i for i in tests if not i])))
 
