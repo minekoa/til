@@ -43,31 +43,46 @@ def getCol( n, lst ):
     return [ i[n] for i in lst ]
     
 
-def log (str):
-    pass
-#    print str:
-
-def visualize (A, ans):
-    str = ""
-    for ri, row in enumerate(A):
-        for ci, cel in enumerate(row):
-            if (ri,ci) in ans:
-                str += "(%s) " % A[ri][ci]
-            else:
-                str += " %s  " % A[ri][ci]
-        str += "\n"
-
-    return str
 
 
 if __name__ == "__main__":
+
+    def test_equal( a, b):
+        print ("%s : %s" %  (a == b, a) )
+        return a==b
+
+    def visualize (A, ans):
+        str = ""
+        for ri, row in enumerate(A):
+            for ci, cel in enumerate(row):
+                if (ri,ci) in ans:
+                    str += "(%s) " % A[ri][ci]
+                else:
+                    str += " %s  " % A[ri][ci]
+            str += "\n"
+     
+        return str
+
+
     # 1,1 (v=5)と 1,2 (v=8)らしい 
     A=[[0,1,9,3],
        [7,5,8,3],
        [9,2,9,4],
        [4,6,7,1]]
 
-    print( "saddle points count = %d" % sol(A) )
+    tests = [ test_equal( getLocalMinimumIndexes( [0,1,2,1,3,0,1] ), [3,5] ),
+              test_equal( getLocalMaximumIndexes( [0,1,2,1,3,0,1] ), [2,4] ),
+              test_equal( getCol( 1, [ [1,2,3],
+                                       [4,5,6],
+                                       [7,8,9] ] ),
+                          [2,5,8]
+              ),
+              test_equal(listupSaddlePoints(A), { (1,1), (1,2) } ),
+              test_equal(sol(A),2)
+    ]
+    print ("NG" if False in tests else "OK", "%d tests" % len(tests))
+
+
     print( visualize(A, listupSaddlePoints(A)))
 
 
