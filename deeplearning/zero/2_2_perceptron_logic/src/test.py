@@ -1,10 +1,32 @@
+#!/usr/bin/env python3
 
+import numpy as np
 
-def AND(x1, x2):
+def AND_simple(x1, x2):
+    """
+    2.3.1 簡単な実装
+
+    y  = { 0 .. (w1x1 + w2x2 ≦ θ)
+           1 .. (w1x1 + w2x2 > θ)
+         }
+    """
     w1, w2, theta = 0.5, 0.5, 0.7
-
     return 0 if (x1*w1 + x2*w2 < theta) else 1
 
+def AND(x1, x2):
+    """
+    2.3.2 重みとバイアスの導入 / 重みとバイアスの実装
+
+    y  = { 0 .. (b + w1x1 + w2x2 ≦ 0)
+           1 .. (b + w1x1 + w2x2 > 0)
+         }
+    """
+    x = np.array( [x1, x2] )
+    w = np.array( [0.5, 0.5] )
+    b = -0.7                     # bias
+
+    cond = np.sum(w*x) + b # 行列の掛け算で実装
+    return 0 if cond <= 0 else 1
 
 if __name__ == "__main__":
     def test_equal(title, cond, ans):
