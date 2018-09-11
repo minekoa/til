@@ -77,6 +77,33 @@ if __name__ == "__main__":
                                        [7,8,9] ] ),
                           [2,5,8]
               ),
+              test_equal( listupSaddlePoints( [ [1,2,1],
+                                                [1,2,1],
+                                                [1,2,1] ] ),
+                          set()
+              ),
+              test_equal( listupSaddlePoints( [ [2,3,4,1],
+                                                [1,2,3,1],
+                                                [2,3,4,2] ] ),
+                          {(1,2)}
+              ),
+              test_equal( listupSaddlePoints( [ [3,2,1,2],
+                                                [4,3,2,3],
+                                                [3,2,1,2] ] ),
+                          {(1,2)}
+              ),
+              test_equal( listupSaddlePoints( [ [4,3,2,3],
+                                                [3,2,1,2],
+                                                [4,3,2,3] ] ),
+                          set()
+              ),
+              test_equal( listupSaddlePoints( [ [1, 2 , 1 , 2 , 1 , 2],
+                                                [2, 3 ,(2), 3 ,(2), 3],
+                                                [1,(2), 1 ,(2), 1 , 2],
+                                                [2, 3 , 2 , 3 , 2 , 3]
+                                                ] ),
+                          {(1,2), (2,1),(2,3),(1,4)}
+              ),
               test_equal(listupSaddlePoints(A), { (1,1), (1,2) } ),
               test_equal(sol(A),2)
     ]
