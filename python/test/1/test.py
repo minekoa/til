@@ -13,58 +13,31 @@ def sol (A):
     return len( listupSaddlePoints(A) )
 
 def listupSaddlePoints(A):
-    s = set()
+    s = []
 
     for ri, row in enumerate( A ):
         if ri == 0 or ri == len(A) -1 : continue # edge clipping
 
-
         maxcol_idxs = getLocalMaximumIndexes(row)
-        for ci in maxcol_idxs:
-            col = getCol(ci, A)
-            minrow_idxs = getLocalMinimumIndexes(col)
-
-            if ri in minrow_idxs:
-                s.add( (ri,ci) )
-                log ("hit! (%i, %i) in %s %s" % (ri, ci
-                                                , row[0:ci] + ["^%s" % row[ci] ] + row[ci+1:]
-                                                , col[0:ri] + ["v%s" % col[ri] ] + col[ri+1:]))
+        s += [ (ri, ci) for ci in maxcol_idxs if isLocalMinimumIn(ri, getCol(ci, A)) ] 
 
         mincol_idxs = getLocalMinimumIndexes(row)
-        for ci in mincol_idxs:
-            col = getCol(ci, A)
-            maxrow_idxs = getLocalMaximumIndexes(col)
+        s += [ (ri, ci) for ci in mincol_idxs if isLocalMaximumIn(ri, getCol(ci, A)) ] 
 
-            if ri in maxrow_idxs:
-                s.add( (ri,ci) )
-                log ("hit! (%i, %i) in %s %s" % (ri, ci
-                                                , row[0:ci] + ["v%s" % row[ci] ] + row[ci+1:]
-                                                , col[0:ri] + ["^%s" % col[ri] ] + col[ri+1:]))
-
-
-    return s
+    return set(s)
 
 
 def getLocalMaximumIndexes( lst ):
-    ret = []
-    for i in range(0, len(lst)):
-        if i -1 < 0 or i +1 >= len(lst):
-            continue
+    return [i for i in range(1, len(lst) -1) if lst[i-1] < lst[i] and lst[i] > lst[i+1]]
 
-        if (lst[i -1] < lst[i]) and (lst[ i + 1] < lst[i]):
-            ret.append(i)
-    return ret
+def isLocalMaximumIn(i, lst):
+    return i in getLocalMaximumIndexes(lst)
         
 def getLocalMinimumIndexes( lst ):
-    ret = []
-    for i in range(0, len(lst)):
-        if i -1 < 0 or i +1 >= len(lst):
-            continue
+    return [i for i in range(1, len(lst) -1) if lst[i-1] > lst[i] and lst[i] < lst[i+1]]
 
-        if (lst[i -1] > lst[i]) and (lst[i] < lst[i+1]):
-            ret.append(i)
-    return ret
-
+def isLocalMinimumIn(i, lst):
+    return i in getLocalMinimumIndexes(lst)
                    
 def getCol( n, lst ):
     return [ i[n] for i in lst ]
