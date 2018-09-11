@@ -10,41 +10,42 @@
 ### とのこと
 
 def sol (A):
-    return len(listup(A))
+    return len( listupSaddlePoints(A) )
 
-def listup(A):
+def listupSaddlePoints(A):
     s = set()
 
     for ri, row in enumerate( A ):
         if ri == 0 or ri == len(A) -1 : continue # edge clipping
 
-        maxcol_idxs = getMaxIndexes(row)
+
+        maxcol_idxs = getLocalMaximumIndexes(row)
         for ci in maxcol_idxs:
             col = getCol(ci, A)
-            minrow_idxs = getMinIndexes(col)
+            minrow_idxs = getLocalMinimumIndexes(col)
 
             if ri in minrow_idxs:
                 s.add( (ri,ci) )
                 log ("hit! (%i, %i) in %s %s" % (ri, ci
-                                                 , row[0:ci] + ["^%s" % row[ci] ] + row[ci+1:]
-                                                 , col[0:ri] + ["v%s" % col[ri] ] + col[ri+1:]))
+                                                , row[0:ci] + ["^%s" % row[ci] ] + row[ci+1:]
+                                                , col[0:ri] + ["v%s" % col[ri] ] + col[ri+1:]))
 
-        mincol_idxs = getMinIndexes(row)
+        mincol_idxs = getLocalMinimumIndexes(row)
         for ci in mincol_idxs:
             col = getCol(ci, A)
-            maxrow_idxs = getMaxIndexes(col)
+            maxrow_idxs = getLocalMaximumIndexes(col)
 
             if ri in maxrow_idxs:
                 s.add( (ri,ci) )
                 log ("hit! (%i, %i) in %s %s" % (ri, ci
-                                                 , row[0:ci] + ["v%s" % row[ci] ] + row[ci+1:]
-                                                 , col[0:ri] + ["^%s" % col[ri] ] + col[ri+1:]))
+                                                , row[0:ci] + ["v%s" % row[ci] ] + row[ci+1:]
+                                                , col[0:ri] + ["^%s" % col[ri] ] + col[ri+1:]))
 
 
     return s
 
 
-def getMaxIndexes( lst ):
+def getLocalMaximumIndexes( lst ):
     ret = []
     for i in range(0, len(lst)):
         if i -1 < 0 or i +1 >= len(lst):
@@ -54,7 +55,7 @@ def getMaxIndexes( lst ):
             ret.append(i)
     return ret
         
-def getMinIndexes( lst ):
+def getLocalMinimumIndexes( lst ):
     ret = []
     for i in range(0, len(lst)):
         if i -1 < 0 or i +1 >= len(lst):
@@ -94,8 +95,6 @@ if __name__ == "__main__":
        [4,6,7,1]]
 
     print( "saddle points count = %d" % sol(A) )
-    print( visualize(A, listup(A)))
-
-
+    print( visualize(A, listupSaddlePoints(A)))
 
 
