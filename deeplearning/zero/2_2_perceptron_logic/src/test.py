@@ -45,6 +45,23 @@ def OR(x1, x2):
     return 0 if cond <= 0 else 1
 
 
+def XOR(x1, x2):
+    """
+    multi-layerd perceptron
+
+    L0                  L1                L2
+
+    (x1)---+-----------> (s1)------+
+           |   +-------> (  )      |
+           |   |                   +----->(y)
+           |   |                   +----->( )
+           +---|-------> (  )      |
+    (x2)-------+-------> (s2)------+
+    """
+    s1 = NAND(x1, x2)
+    s2 = OR(x1,x2)
+    return AND(s1, s2)
+
 if __name__ == "__main__":
     def test_equal(title, cond, ans):
         print( "%s: test:\"%s\" .. %s " % ("OK" if cond == ans else "NG", title, cond))
@@ -61,7 +78,11 @@ if __name__ == "__main__":
               test_equal( "OR 0 0", OR(0,0), 0),
               test_equal( "OR 0 1", OR(0,1), 1),
               test_equal( "OR 1 0", OR(1,0), 1),
-              test_equal( "OR 1 1", OR(1,1), 1)
+              test_equal( "OR 1 1", OR(1,1), 1),
+              test_equal( "XOR 0 0", XOR(0,0), 0),
+              test_equal( "XOR 0 1", XOR(0,1), 1),
+              test_equal( "XOR 1 0", XOR(1,0), 1),
+              test_equal( "XOR 1 1", XOR(1,1), 0)
     ]
-    print ( "%d tests: OK %d   NG %d" % (len(tests), len([i for i in tests if i ]), len([i for i in tests if not i])))
+    print ( "  %d tests: OK %d   NG %d" % (len(tests), len([i for i in tests if i ]), len([i for i in tests if not i])))
 
