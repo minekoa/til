@@ -8,6 +8,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 
 import Task exposing (Task)
+import Time exposing (Posix, toMillis)
 
 type alias DomInfo =
     { pos : Maybe Dom.Element
@@ -29,10 +30,13 @@ type alias Model =
     { cursor : DomInfo
     , frame  : DomInfo
     , canvas : DomInfo
+    , isAutoUpdate : Bool
     }
 
 type Msg 
     = Nop
+    | Tick Posix
+    | SetAutoUpdate Bool
     | GetCursorPos
     | UpdateCursorPos Dom.Element
     | GetCursorViewport
@@ -56,9 +60,28 @@ main =
 
 init : Maybe Int -> ( Model, Cmd Msg )
 init flgs =
-    ( Model nullInfo nullInfo nullInfo
+    ( Model nullInfo nullInfo nullInfo False
     , Cmd.none
     )
+
+getElementCmd: String -> (Dom.Element -> Msg) -> Cmd Msg
+getElementCmd id updtMsg =
+    Dom.getElement id
+        |> Task.attempt (\r ->
+                             case r of
+                                 Ok domelm -> updtMsg domelm
+                                 Err e     -> Nop
+                        )
+
+getViewportCmd: String -> (Dom.Viewport -> Msg) -> Cmd Msg
+getViewportCmd id updtMsg =
+    Dom.getViewportOf id
+        |> Task.attempt (\r ->
+                             case r of
+                                 Ok domelm -> updtMsg domelm
+                                 Err e     -> Nop
+                        )
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -66,14 +89,29 @@ update msg model =
         Nop ->
             ( model, Cmd.none )
 
+        Tick tm ->
+            ( model
+            , case model.isAutoUpdate of
+                  False ->
+                      Cmd.none
+                  True ->
+                      Cmd.batch [ getElementCmd "cursor" UpdateCursorPos
+                                , getViewportCmd "cursor" UpdateCursorViewport
+                                , getElementCmd "frame" UpdateFramePos
+                                , getViewportCmd "frame" UpdateFrameViewport
+                                , getElementCmd "canvas" UpdateCanvasPos
+                                , getViewportCmd "canvas" UpdateCanvasViewport
+                                ]
+            )
+
+        SetAutoUpdate b ->
+            ( { model | isAutoUpdate = b }
+            , Cmd.none
+            )
+
         GetCursorPos ->
-            ( model,
-                  Dom.getElement "cursor"
-                  |> Task.attempt (\r ->
-                                       case r of
-                                           Ok domelm -> UpdateCursorPos domelm
-                                           Err e     -> Nop
-                                  )
+            ( model
+            , getElementCmd "cursor" UpdateCursorPos
             )
         UpdateCursorPos pos ->
             ( { model | cursor = setPos (Just pos) model.cursor }
@@ -81,13 +119,8 @@ update msg model =
             )
 
         GetCursorViewport ->
-            ( model,
-                  Dom.getViewportOf "cursor"
-                  |> Task.attempt (\r ->
-                                       case r of
-                                           Ok domelm -> UpdateCursorViewport domelm
-                                           Err e     -> Nop
-                                  )
+            ( model
+            , getViewportCmd "cursor" UpdateCursorViewport
             )
 
         UpdateCursorViewport vp ->
@@ -96,28 +129,16 @@ update msg model =
             )
 
         GetFramePos ->
-            ( model,
-                  Dom.getElement "frame"
-                  |> Task.attempt (\r ->
-                                       case r of
-                                           Ok domelm -> UpdateFramePos domelm
-                                           Err e     -> Nop
-                                  )
+            ( model
+            , getElementCmd "frame" UpdateFramePos
             )
         UpdateFramePos pos ->
             ( { model | frame = setPos (Just pos) model.frame }
             , Cmd.none
             )
-
-
         GetFrameViewport ->
-            ( model,
-                  Dom.getViewportOf "frame"
-                  |> Task.attempt (\r ->
-                                       case r of
-                                           Ok domelm -> UpdateFrameViewport domelm
-                                           Err e     -> Nop
-                                  )
+            ( model
+            , getViewportCmd "frame" UpdateFrameViewport
             )
         UpdateFrameViewport vp ->
             ( { model | frame = setVp (Just vp) model.frame }
@@ -125,28 +146,16 @@ update msg model =
             )
 
         GetCanvasPos ->
-            ( model,
-                  Dom.getElement "canvas"
-                  |> Task.attempt (\r ->
-                                       case r of
-                                           Ok domelm -> UpdateCanvasPos domelm
-                                           Err e     -> Nop
-                                  )
+            ( model
+            , getElementCmd "canvas" UpdateCanvasPos
             )
         UpdateCanvasPos pos ->
             ( { model | canvas = setPos (Just pos) model.canvas }
             , Cmd.none
             )
-
-
         GetCanvasViewport ->
-            ( model,
-                  Dom.getViewportOf "canvas"
-                  |> Task.attempt (\r ->
-                                       case r of
-                                           Ok domelm -> UpdateCanvasViewport domelm
-                                           Err e     -> Nop
-                                  )
+            ( model
+            , getViewportCmd "canvas" UpdateCanvasViewport
             )
         UpdateCanvasViewport vp ->
             ( { model | canvas = setVp (Just vp) model.canvas }
@@ -157,13 +166,19 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Sub.batch [ Time.every 1000 Tick ]
 
 
 view : Model -> Html Msg
 view model =
     div []
         [ h1 [] [ text "Browser.Dom の viewポート関連のデモンストレーション" ]
+        , div [ onClick <| SetAutoUpdate (not model.isAutoUpdate)
+              , style "color" <| case model.isAutoUpdate of
+                                     True -> "red"
+                                     False -> "gray"
+              ]
+              [ text "Auto Update" ]
         , div [style "display" "flex" ]
             [ div [] [ div [ class "btn", onClick GetCursorPos ] [text "getElement 'cursor'"]
                      , viewElement model.cursor.pos
