@@ -165,22 +165,22 @@ view model =
     div []
         [ h1 [] [ text "Browser.Dom の viewポート関連のデモンストレーション" ]
         , div [style "display" "flex" ]
-            [ div [] [ div [ onClick GetCursorPos ] [text "Get cursor position"]
+            [ div [] [ div [ class "btn", onClick GetCursorPos ] [text "getElement 'cursor'"]
                      , viewElement model.cursor.pos
                      ]
-            , div [] [ div [ onClick GetCursorViewport ] [text "Get cursor viewport"]
+            , div [] [ div [ class "btn", onClick GetCursorViewport ] [text "getViewportOf 'cursor'"]
                      , viewViewport model.cursor.vp
                      ]
-            , div [] [ div [ onClick GetFramePos ] [text "Get frame Position"]
+            , div [] [ div [ class "btn", onClick GetFramePos ] [text "getElement 'frame'"]
                      , viewElement model.frame.pos
                      ]
-            , div [] [ div [ onClick GetFrameViewport ] [text "Get frame viewport"]
+            , div [] [ div [ class "btn", onClick GetFrameViewport ] [text "getViewportOf 'frame'"]
                      , viewViewport model.frame.vp
                      ]
-            , div [] [ div [ onClick GetCanvasPos ] [text "Get canvas Position"]
+            , div [] [ div [ class "btn", onClick GetCanvasPos ] [text "getElement 'canvas'"]
                      , viewElement model.canvas.pos
                      ]
-            , div [] [ div [ onClick GetCanvasViewport ] [text "Get canvas viewport"]
+            , div [] [ div [ class "btn", onClick GetCanvasViewport ] [text "getViewportOf 'canvas'"]
                      , viewViewport model.canvas.vp
                      ]
             ]

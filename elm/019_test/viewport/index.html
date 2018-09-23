@@ -2,7 +2,26 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <style>html,head,body { padding:0; margin:0; height:100%; } body { font-family: calibri, helvetica, arial, sans-serif;}</style>
+  <style>html,head,body { padding:0; margin:0; height:100%; } body { font-family: calibri, helvetica, arial, sans-serif;}
+    .btn {
+    border: 1px solid blue;
+    color: whitesmoke;
+    padding: 0.25rem;
+    margin: 0 0.2rem; 
+
+    background-color: royalblue;
+    background-position: center;
+    transition: background 0.8s;
+    }
+    .btn:hover {
+    background: #47a7f5 radial-gradient(circle, transparent 1%, #47a7f5 1%) center/15000%;
+    }
+    .btn:active {
+    background-color: royalblue;
+    background-size: 100%;
+    transition: background 0s;
+    }
+  </style>
   <title>default styles | elm-text-editor example</title>
 </head>
 <body>
