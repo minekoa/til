@@ -9,16 +9,42 @@ import Html.Events exposing (..)
 
 import Task exposing (Task)
 
+type alias DomInfo =
+    { pos : Maybe Dom.Element
+    , vp  : Maybe Dom.Viewport
+    }
+
+setPos : Maybe Dom.Element -> DomInfo -> DomInfo
+setPos pos info =
+    { info | pos = pos }
+
+setVp : Maybe Dom.Viewport -> DomInfo -> DomInfo
+setVp vp info =
+    { info | vp = vp }
+
+nullInfo : DomInfo
+nullInfo = { pos = Nothing, vp = Nothing }
 
 type alias Model =
-    { cursor : Maybe Dom.Element
+    { cursor : DomInfo
+    , frame  : DomInfo
+    , canvas : DomInfo
     }
 
 type Msg 
     = Nop
     | GetCursorPos
     | UpdateCursorPos Dom.Element
-
+    | GetCursorViewport
+    | UpdateCursorViewport Dom.Viewport
+    | GetFramePos
+    | UpdateFramePos Dom.Element
+    | GetFrameViewport
+    | UpdateFrameViewport Dom.Viewport
+    | GetCanvasPos
+    | UpdateCanvasPos Dom.Element
+    | GetCanvasViewport
+    | UpdateCanvasViewport Dom.Viewport
 
 main =
     Browser.element
@@ -30,7 +56,7 @@ main =
 
 init : Maybe Int -> ( Model, Cmd Msg )
 init flgs =
-    ( Model Nothing
+    ( Model nullInfo nullInfo nullInfo
     , Cmd.none
     )
 
@@ -50,9 +76,84 @@ update msg model =
                                   )
             )
         UpdateCursorPos pos ->
-            ( { model | cursor = Just pos}
+            ( { model | cursor = setPos (Just pos) model.cursor }
             , Cmd.none
             )
+
+        GetCursorViewport ->
+            ( model,
+                  Dom.getViewportOf "cursor"
+                  |> Task.attempt (\r ->
+                                       case r of
+                                           Ok domelm -> UpdateCursorViewport domelm
+                                           Err e     -> Nop
+                                  )
+            )
+
+        UpdateCursorViewport vp ->
+            ( { model | cursor = setVp (Just vp) model.cursor }
+            , Cmd.none
+            )
+
+        GetFramePos ->
+            ( model,
+                  Dom.getElement "frame"
+                  |> Task.attempt (\r ->
+                                       case r of
+                                           Ok domelm -> UpdateFramePos domelm
+                                           Err e     -> Nop
+                                  )
+            )
+        UpdateFramePos pos ->
+            ( { model | frame = setPos (Just pos) model.frame }
+            , Cmd.none
+            )
+
+
+        GetFrameViewport ->
+            ( model,
+                  Dom.getViewportOf "frame"
+                  |> Task.attempt (\r ->
+                                       case r of
+                                           Ok domelm -> UpdateFrameViewport domelm
+                                           Err e     -> Nop
+                                  )
+            )
+        UpdateFrameViewport vp ->
+            ( { model | frame = setVp (Just vp) model.frame }
+            , Cmd.none
+            )
+
+        GetCanvasPos ->
+            ( model,
+                  Dom.getElement "canvas"
+                  |> Task.attempt (\r ->
+                                       case r of
+                                           Ok domelm -> UpdateCanvasPos domelm
+                                           Err e     -> Nop
+                                  )
+            )
+        UpdateCanvasPos pos ->
+            ( { model | canvas = setPos (Just pos) model.canvas }
+            , Cmd.none
+            )
+
+
+        GetCanvasViewport ->
+            ( model,
+                  Dom.getViewportOf "canvas"
+                  |> Task.attempt (\r ->
+                                       case r of
+                                           Ok domelm -> UpdateCanvasViewport domelm
+                                           Err e     -> Nop
+                                  )
+            )
+        UpdateCanvasViewport vp ->
+            ( { model | canvas = setVp (Just vp) model.canvas }
+            , Cmd.none
+            )
+
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
@@ -63,8 +164,26 @@ view : Model -> Html Msg
 view model =
     div []
         [ h1 [] [ text "Browser.Dom の viewポート関連のデモンストレーション" ]
-        , div [ onClick GetCursorPos ] [text "Get cursor position"]
-        , viewElement model.cursor
+        , div [style "display" "flex" ]
+            [ div [] [ div [ onClick GetCursorPos ] [text "Get cursor position"]
+                     , viewElement model.cursor.pos
+                     ]
+            , div [] [ div [ onClick GetCursorViewport ] [text "Get cursor viewport"]
+                     , viewViewport model.cursor.vp
+                     ]
+            , div [] [ div [ onClick GetFramePos ] [text "Get frame Position"]
+                     , viewElement model.frame.pos
+                     ]
+            , div [] [ div [ onClick GetFrameViewport ] [text "Get frame viewport"]
+                     , viewViewport model.frame.vp
+                     ]
+            , div [] [ div [ onClick GetCanvasPos ] [text "Get canvas Position"]
+                     , viewElement model.canvas.pos
+                     ]
+            , div [] [ div [ onClick GetCanvasViewport ] [text "Get canvas viewport"]
+                     , viewViewport model.canvas.vp
+                     ]
+            ]
         , div [ id "frame"
               , style "overflow" "auto"
               , style "height" "20rem"
@@ -125,4 +244,24 @@ viewElement maybe_pos =
                           ]
                   ]
 
+viewViewport : Maybe Dom.Viewport -> Html msg
+viewViewport maybe_vp =
+    case maybe_vp of
+        Nothing ->
+            div [] []
+        Just vp ->
+            ul [] [ li [] [ text "scene:"
+                          , ul [] [ li [] [ text "width: ", text (String.fromFloat vp.scene.width) ]
+                                  , li [] [ text "height: ", text (String.fromFloat vp.scene.height) ]
+                                  ]
+                          ]
+
+                  , li [] [ text "viewport:"
+                          , ul [] [ li [] [ text "x: ", text (String.fromFloat vp.viewport.x) ]
+                                  , li [] [ text "y: ", text (String.fromFloat vp.viewport.y) ]
+                                  , li [] [ text "width: ", text (String.fromFloat vp.viewport.width) ]
+                                  , li [] [ text "height: ", text (String.fromFloat vp.viewport.height) ]
+                                  ]
+                          ]
+                  ]
 
