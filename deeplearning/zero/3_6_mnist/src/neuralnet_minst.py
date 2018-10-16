@@ -35,7 +35,23 @@ def predict(network, x):
     return y
 
 
-if __name__ == '__main__':
+
+import time
+
+def measure(func):
+    def wrapper(*args, **kargs):
+        start_time = time.time()
+        
+        result = func(*args, **kargs)
+        
+        execution_time = time.time() - start_time
+        print(f'{func.__name__}: {execution_time}')
+        return result
+    return wrapper
+
+
+@measure
+def one_shot():
     x, t = get_data()
     network = init_network()
 
@@ -46,5 +62,31 @@ if __name__ == '__main__':
         if p == t[i]:
             accuracy_cnt += 1
 
-    print("Accuracy: %s" % (float(accuracy_cnt) / len(x)))
+    print("Accuracy (one_shot): %s" % (float(accuracy_cnt) / len(x)))
+
+@measure
+def batch( batch_size ):
+    '''
+    入力データを複数束ねて処理（行列演算）すると、高速化が期待できる。
+    なぜならば、数値演算を行うライブラリは大きな配列の計算を効率良く行えるように最適化されていることが多いから
+    '''
+
+    x, t = get_data()
+    network = init_network()
+
+    accuracy_cnt = 0
+    for i in range(1, len(x), batch_size):
+        x_chank = x[i : i+batch_size]
+
+        y = predict(network, x_chank)
+        p = np.argmax(y, axis=1)
+        accuracy_cnt += np.sum( p == t[i : i+batch_size])
+
+    print("Accuracy (batch %d): %s" % (batch_size, (float(accuracy_cnt) / len(x))))
+
+
+if __name__ == '__main__':
+    one_shot()
+
+    batch(100)
 
