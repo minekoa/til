@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
+#-*- coding: utf-8 -*-
 
 import numpy as np
+
+##------------------------------------------------------------
+## activation functions (活性化関数)
+##------------------------------------------------------------
+
 
 def sigmoid(x):
     """
@@ -69,4 +75,103 @@ def softmax(a):
     return y
 
 
+##------------------------------------------------------------
+## loss functions (損失関数)
+##------------------------------------------------------------
 
+
+def mean_squared_error(y, t):
+    '''
+    # 二乗和誤差
+
+    ## 定義
+
+    let
+        y : Array of Real (0.0<=elm<=1.0) # ニューラルネットワークの出力
+        t : Array of Real (0 or 1)        # 教師データ .. 正解が1, その他は0 (one hot 表現という)
+    in
+        E = 1/2 * (sum <| map λk-> (y[k] - t[k]) ^ 2)
+    '''
+
+    return 0.5 * np.sum((y-t)**2)
+
+
+def cross_entropy_error(y, t):
+    '''
+    # 交差エントロピー誤差
+
+    ## 定義
+
+    let 
+        y : Array of Real (0.0<=elm<=1.0) # ニューラルネットワークの出力
+        t : Array of Real (0 or 1)        # 教師データ .. 正解が1, その他は0 (one hot 表現という)
+    in
+        E = -1 ( sum <| map λk -> t[k] * log(y[k]) )
+
+
+    ## 実装上のテクニック
+
+    log(0) を計算してしまって -∞ になるのを防ぐための微小な値 ⊿ を足しておく
+
+    E = -1 ( sum <| map λk -> t[k] * log(y[k] + ⊿))
+
+    '''
+
+
+    delta = 1e-7
+    return -np.sum(t * np.log(y + delta))
+
+
+##------------------------------------------------------------
+## 
+##------------------------------------------------------------
+
+def numerical_gradient_1d(f, x):
+    '''
+    # 数値勾配
+
+    ## 定義
+
+    すべての変数の偏微分をまとめたものを勾配(gradient)という。
+
+    '''
+
+    h = 1e-4
+    grad = np.zeros_like(x) # xと同じshapeで要素がall0の配列を生成
+
+    for idx in range(x.size):
+        tmp_val = x[idx] # 退避
+
+        x[idx] = tmp_val + h
+        fxh1 = f(x)
+
+        x[idx] = tmp_val - h
+        fxh2 = f(x)
+
+        grad[idx] = (fxh1 - fxh2) / (2 * h)
+
+        x[idx] = tmp_val # 復帰
+
+    return grad
+
+        
+
+def numerical_gradient(f, x):
+    h = 1e-4 # 0.0001
+    grad = np.zeros_like(x)
+    
+    it = np.nditer(x, flags=['multi_index'], op_flags=['readwrite'])
+    while not it.finished:
+        idx = it.multi_index
+        tmp_val = x[idx]
+        x[idx] = float(tmp_val) + h
+        fxh1 = f(x) # f(x+h)
+        
+        x[idx] = tmp_val - h 
+        fxh2 = f(x) # f(x-h)
+        grad[idx] = (fxh1 - fxh2) / (2*h)
+        
+        x[idx] = tmp_val # 値を元に戻す
+        it.iternext()   
+        
+    return grad
