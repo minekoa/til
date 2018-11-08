@@ -206,9 +206,9 @@ void createUniqLoginIdFile( const std::string & filename, long lines_num )
  *
  * * ローカル部は8文字固定とした（手抜き）
  * * ドメインパートは
- *      * @ymir.co.jp    .. 30%
- *      * @cuenote.jp    .. 20%
- *      * @tripletail.jp .. 10%
+ *      * @hoge.co.jp    .. 30%
+ *      * @xyzzy.jp      .. 20%
+ *      * @foobarbuz.jp  .. 10%
  *      * その他は弱小ドメイン（ランダム生成）それぞれに10〜100件程度入るようにする
  */
 void createUniqMailAddressFile( const std::string & filename, long lines_num )
@@ -241,9 +241,9 @@ void createUniqMailAddressFile( const std::string & filename, long lines_num )
     auto domain_rand = [&dom_dist, &rng, small_doms, &sdom_dist ]() {
                            auto c = dom_dist(rng);
 
-                           if      (c < 30) { return std::string("@ymir.co.jp"); }
-                           else if (c < 50) { return std::string("@cuenote.jp"); }
-                           else if (c < 60) { return std::string("@tripletail.jp"); }
+                           if      (c < 30) { return std::string("@hoge.co.jp"); }
+                           else if (c < 50) { return std::string("@xyzzy.jp"); }
+                           else if (c < 60) { return std::string("@foobarbuz.jp"); }
                            else {
                                return small_doms[ sdom_dist(rng) ];
                            }
