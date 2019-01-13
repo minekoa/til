@@ -14,8 +14,10 @@
 
 %% escript Entry point
 main(_Arg) ->
-    Ret = routine2(),
-    io:format("Args: ~p~n", [Ret]),
+    Ret2 = routine2(),
+    io:format("rutine2: (+2, 0) -> (0, +2) -> (+1, 0) ==> ~p~n", [Ret2]),
+    Ret3 = routine3(),
+    io:format("rutine3: (+1, 0) -> (0, +4) outi! -> (-1, 0) -> (0, -2) ==> ~p~n", [Ret3]),
     erlang:halt(0).
 
 %%====================================================================
@@ -24,7 +26,6 @@ main(_Arg) ->
 
 
 -type maybe(A) :: {just, A} | nothing.
-
 
 -type birds() :: integer().
 -type pole() :: {birds(), birds()}.
@@ -38,6 +39,21 @@ routine2() ->
            Second <- land_right(2, First),
            land_left(1, Second)
        ]).
+
+
+-spec routine3() -> maybe(pole()).
+routine3() ->
+    do([maybe_m ||
+           Start <- return({0, 0}),
+           First <- land_left(1, Start),
+           Second <- land_right(4, First),
+           Third <- land_left(-1, Second),
+           land_right(-2, Third)
+       ]).
+
+
+
+
 
 
 -spec land_left( 
