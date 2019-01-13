@@ -2,7 +2,6 @@
 
 -import(maybe_m, ['>>='/2, return/1]).
 
-
 -compile({parse_transform, do}).
 
 %% API exports
@@ -13,6 +12,7 @@
 %%====================================================================
 
 %% escript Entry point
+-spec main( any() ) -> no_return().
 main(_Arg) ->
     Ret2 = routine2(),
     io:format("rutine2: (+2, 0) -> (0, +2) -> (+1, 0) ==> ~p~n", [Ret2]),
@@ -24,8 +24,7 @@ main(_Arg) ->
 %% Internal functions
 %%====================================================================
 
-
--type maybe(A) :: {just, A} | nothing.
+-type maybe(A) :: maybe_m:maybe(A).
 
 -type birds() :: integer().
 -type pole() :: {birds(), birds()}.
@@ -53,11 +52,9 @@ routine3() ->
 
 
 
-
-
-
 -spec land_left( 
-        birds(), pole()
+        birds(),
+        pole()
        ) -> maybe( integer() ).
 land_left(N, {Left, Right}) ->
     case abs((Left + N) - Right) < 4 of
@@ -67,8 +64,10 @@ land_left(N, {Left, Right}) ->
             nothing
     end.
 
+
 -spec land_right( 
-        birds(), pole()
+        birds(),
+        pole()
        ) -> maybe( pole() ).
 land_right(N, {Left, Right}) ->
     case abs(Left - (Right + N)) < 4 of
