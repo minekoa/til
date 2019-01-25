@@ -6,6 +6,7 @@
 
 * [Mercurial(hg) のコマンド一覧 | A Day in Serenity @ kenjis](http://d.hatena.ne.jp/Kenji_s/20110203/1296696735)
 * [Mercurial（Hg）によるソフトウェア開発を始めよう](https://ja.osdn.net/hg/)
+* [hg and git | いろいろ](http://misc.e-hdk.com/hg-and-git)
 
 設定ファイル `git config` 系のコマンド..ではなく、テキストエディタで編集させるっぽい
 
@@ -15,6 +16,3 @@
 TortoiseHG ubuntuにあるのか。マジか。
 
 * [TortoiseHg から始める Mercurial (Ubuntu編)](http://cointoss.hatenablog.com/entry/2012/12/02/145322)
-
-
-
