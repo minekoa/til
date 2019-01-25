@@ -25,3 +25,17 @@
 ```
 
 私は、コードブロックも色を付けたいので、`markdown-code-face` にも `foreground` ... を記述。
+
+## 追記
+
+`emacs -nw` で `markdown-code-face` なんてないよ的エラーで
+困ったので、少し修正
+
+```
+(custom-set-faces
+ '(markdown-code-face
+   ((t (:inherit default :foreground "DarkOliveGreen1")))) ;"aquamarine"
+ '(markdown-inline-code-face
+   ((t (:inherit default :foreground "DarkOliveGreen1")))) ;"aquamarine"
+ )
+```
