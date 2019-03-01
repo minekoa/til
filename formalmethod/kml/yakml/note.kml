@@ -1,0 +1,275 @@
+------------------------------------------------------------
+-- basic
+
+type NonNegInt = given
+type String = given
+
+type SizedString = SizedString of NonNegInt * NonNegInt * String -- min , max
+
+type Maybe a = Just a | Nothing
+
+------------------------------------------------------------
+-- Http
+type HttpMethod = HttpGet |
+
+type HttpStatusCode = Http200Ok
+                    | Http403Forbidden
+                    | Http404NotFound
+                    | Http201Created of Location
+
+type Url = given -- 型クラス？
+type Payload = given -- 型クラス?
+
+type alias Location = Url
+
+------------------------------------------------------------
+-- HogeRest
+
+type HogeHttpReq = HogeHttpReq of HttpMethod
+                              * Url
+                              * AuthorizationTiket
+                              * Maybe Payload
+
+type HogeHttpRes = HogeHttpRes of HttpStatusCode
+                              * Maybe Payload
+
+------------------------------------------------------------
+-- date and time
+
+type DateTime = given -- YYMMDD hhmmss 的な情報
+type TimeZone = given
+
+type ZonedTime = ZonedTime of TimeZone * DateTime
+
+currentTz g = given
+
+getNowZonedTime g = given
+
+------------------------------------------------------------
+-- authorization
+
+type alias CRUDbit = { create : Bool
+                     , read   : Bool
+                     , update : Bool
+                     , delete : Bool
+                     }
+
+
+type AuthorizationTicket = AuthorizationTicket of TicketId
+
+authorize : Db -> AuthorizationTicket -> FamilyId -> RegionId -> CRUDbit
+authorize db ticket familyId regionId = given
+
+accountIdFromTicket : Db -> AuthorizationTicket -> AccountId
+accountIdFromTicket db ticket = given
+
+------------------------------------------------------------
+-- mine
+
+chan reqPort;
+chan resPort:
+
+type NoteElementUrl =
+     NoteElementUrl of FamilyId * RegionId * NoteId
+     @-- /tutorial/:familyId/:regionId/note/:noteId
+
+type NoteCollectionUrl
+     NoteCollectionUrl of FamilyId * RegionId
+     @-- /tutorial/:familyId/:regionId/note
+
+type alias Note_Doc = { _id : ObjectID           -- unique
+                      , family_id : FamilyId
+                      , region_id : RegionId
+                      , title : SizedString 0 256  -- 256文字以下
+                      , body : SizedString 0 30000 -- 3万文字以下
+                      , author : AccountId
+                      , updateAt : DateTime
+                      , createdAt : DateTime
+                      }
+
+type alias Note_Json = { title : SizedString 0 256)
+                       , body  : SizedString 0 30000)
+                       , auther : AccountId
+                       , updatedAt : ZonedTime
+                       , createdAt : ZonedTime
+                       }
+
+type alias NoteContents_Json { title : String
+                             , body : String
+                             }
+
+state TutorialNoteRestApi@(- こんな状態はない不完全な状態 -) {
+      invariant {
+            forall e1 e2 | e1 <- g.db.tut_family.note
+                         & e2 <- g.db.tut_family.note
+                         & (e1 /= e2) => (e1._id /= e2.id)
+
+      }@{-
+      -}
+
+      ------------------------------------------------------------
+      -- Lookup Element
+      ------------------------------------------------------------
+
+      transition portReq ? (HogeHttpReq HttpGet
+                            (NoteElementUrl familyId regionId noteId)
+                            authorizationTicket
+                            _
+                            ) as request
+           when exists1 { e | e <- g.db.tut_family.note
+                            & e.family_id = familyId
+                            & e.region_id = regionId
+                            & e._id = noteId
+                         }
+                && isAuthenticated authorizationTicket
+                && (authorize g.db authorizationTicket familyId regionId).read
+              @[- ユーザが認証され、
+                  かつ、指定されたファミリー・リージョンの読み込み認可を持つ
+                  かつ、指定されたノートが、tut_familyデータベースのnoteコレクションに存在する
+              -]
+      --> {
+          post {
+              target g, state;
+
+              let
+                 Just document = fetch1 g.db.tut_family.note
+                                        \e -> e.family_id    = familyId
+                                              && e.region_id = regionId
+                                              && e._id       = noteId
+                 payload = Note_Json{ title  = document.title
+                                    , body   = document.body
+                                    , auther = document.auther
+                                    , updatedAt = ZonedTime (currentTz g) document.updateAt
+                                    , createdAt = ZonedTime (currentTz g) document.createdAt
+
+                 response = HogeHttpRes Http200Ok (Just payload)
+                 newlog = HogeRestLog (zonedTimeNow g) request response
+              in
+                  g' = { g | restLog <- [newlog :: g.restLog] }
+                  state' = (portResp ! response) -> state
+          }@{-
+              * 時間と受信内容、送信内容を RESTログに出力する
+              * 200OK 応答とノートの情報を返す。
+          -}
+      }
+
+      transition portReq ? (HogeHttpReq HttpGet
+                            (NoteElementUrl familyId regionId noteId)
+                            authorizationTicket
+                            _
+                 ) as request
+           when exists1 { e | e <- g.db.tut_family.note
+                            & e.family_id = familyId
+                            & e.region_id = regionId
+                            & e._id = noteId
+                         }
+                && not (isAuthenticated authorizationTicket)
+              @[- ユーザが **認証されていない**
+                  かつ、指定されたノートが、tut_familyデータベースのnoteコレクションに存在する
+              -]
+      --> {
+          post {
+              target g, state;
+              let
+                  response = HogeHttpRes Http403Forbidden Nothing
+                  newlog = HogeRestLog (zonedTimeNow g) request response
+              in
+                  g' = { g | restLog <- [newlog :: g.restLog] }
+                  state' = (portResp ! response) -> state.
+          }@{--}
+      }
+
+      transition portReq ? (HogeHttpReq HttpGet
+                            (NoteElementUrl familyId regionId noteId)
+                            authorizationTicket
+                            _
+                ) as request
+           when exists1 { e | e <- g.db.tut_family.note
+                            & e.family_id = familyId
+                            & e.region_id = regionId
+                            & e._id = noteId
+                         }
+                && isAuthenticated authorizationTicket
+                && not (authorize g.db authorizationTicket familyId regionId).read
+              @[- ユーザが認証され、
+                  かつ、指定されたファミリー・リージョンの読み込み認可を **持っていない**
+                  かつ、指定されたノートが、tut_familyデータベースのnoteコレクションに存在する
+              -]
+      --> {
+          post {
+              target g, state;
+              let
+                  response = HogeHttpRes Http403Forbidden Nothing
+                  newlog = HogeRestLog (zonedTimeNow g) request response
+              in
+                  g' = { g | restLog <- [newlog :: g.restLog] }
+                  state' = (portResp ! response) -> state.
+          }@{--}
+      }
+
+      transition portReq ? (HogeHttpReq HttpGet
+                            (NoteElementUrl familyId regionId noteId) as url
+                            authorizationTicket
+                            _
+                ) as request
+           when not exists { e | e <- g.db.tut_family.note
+                               & e.family_id = familyId
+                               & e.region_id = regionId
+                               & e._id = noteId
+                         }
+              @[- 指定されたノートが、tut_familyデータベースのnoteコレクションに **存在しない**
+              -]
+      --> {
+          post {
+              target g, state;
+              let
+                  reqponse = HogeHttpRes Http404NotFound Nothing
+                  newlog = HogeRestLog (zonedTimeNow g) request response
+              in
+                  g' = { g | restLog <- [newlog :: g.restLog] }
+                  state' = (portResp ! response) -> state.
+          }@{--}
+      }
+
+      ------------------------------------------------------------
+      -- Create Element
+      ------------------------------------------------------------
+
+      transition portReq ? (HogeHttpReq HttpPost
+                            (NoteCollectionUrl familyId regionId)
+                            authorizationTicket
+                            Just (NoteContents_Json title body)
+                            ) as request
+           when exists1 { e | e <- g.db.tut_family.note
+                            & e.family_id = familyId
+                            & e.region_id = regionId
+                            & e._id = noteId
+                         }
+                && isAuthenticated authorizationTicket
+                && (authorize g.db authorizationTicket familyId regionId).create
+                && (length title) <= 256
+                && (length body)  <= 30000
+              @[- ユーザが認証され、
+                  かつ、指定されたファミリー・リージョンの生成認可を持つ
+                  かつ、指定されたノートが、tut_familyデータベースのnoteコレクションに存在する
+                  かつ、生成パラメタのタイトルが 256文字以下
+                  かつ、生成パラメタの本文が 30000文字以下
+              -]
+      --> {
+          post {
+              target g, state;
+
+              let
+                 path = todo;
+                 response = HogeHttpRes (Http201Created path) Nothing
+                 newlog = HogeRestLog (zonedTimeNow g) request response
+              in
+                  g' = { g | restLog <- [newlog :: g.restLog] }
+                  state' = (portResp ! response) -> state
+          }@{-
+              * 時間と受信内容、送信内容を RESTログに出力する
+              * 201Created 応答と生成されたノートへのパスを返す。
+          -}
+      }
+
+}
