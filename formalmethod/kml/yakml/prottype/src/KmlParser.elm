@@ -12,9 +12,20 @@ parse source =
 
 type alias State =
     { name: String
-    , comment : String
-    , body : String
+    , naturalLang : String
+    , body : List Transition
     }
+
+type alias Transition =
+    { event : String
+    , post : PostCondition
+    }
+
+type alias PostCondition =
+    { expression : String
+    , naturalLang : String
+    }
+
 
 state : Parser State
 state =
@@ -26,9 +37,9 @@ state =
         |. spaces
         |. symbol "@"
         |. spaces
-        |= comment "(-" "-)" --NotNestable
+        |= naturalLangSpec "(-" "-)" --NotNestable
         |. spaces
-        |= comment "{" "}" --NotNestable --暫定
+        |= stateBody
 
 stateName =
     variable
@@ -37,8 +48,78 @@ stateName =
     , reserved = Set.fromList ["forall"]
     }
 
-comment : String -> String -> Parser String
-comment open close =
+stateBody : Parser (List Transition)
+stateBody =
+    sequence
+        { start = "{"
+        , separator = ";"
+        , end   = "}"
+        , spaces = spaces
+        , item = transition
+        , trailing = Forbidden
+        }
+
+--Transition ::= "transition" EventExpression (Guird)? "-->" (TransitionBody | InternalChoiceList)
+
+
+transition : Parser Transition
+transition =
+    succeed Transition
+        |. keyword "transition"
+        |. spaces
+        |= eventExpression
+        |. spaces
+        |. symbol "-->"
+        |. spaces
+        |= transitionBody
+        |. spaces
+
+transitionBody : Parser PostCondition
+transitionBody =
+    succeed identity
+        |. symbol "{"
+        |. spaces
+        |= postCondition
+        |. spaces
+        |. symbol "}"
+        |. spaces
+
+postCondition =
+    -- post {
+    --     <<Post Expression>>
+    -- } @ {-
+    --     <<Natural Language Spec>>
+    -- }
+    succeed PostCondition
+        |. keyword "post"
+        |. spaces
+        |. symbol "{"
+        |. spaces
+        |= postExpression
+        |. spaces
+        |. symbol "}"
+        |. spaces
+        |. symbol "@"
+        |. spaces
+        |= naturalLangSpec "{-" "-}"
+
+postExpression =
+    variable
+    { start = Char.isLower
+    , inner = \c -> Char.isAlphaNum c || c == '_'
+    , reserved = Set.fromList ["forall"]
+    }
+
+
+eventExpression =
+    variable
+    { start = Char.isLower
+    , inner = \c -> Char.isAlphaNum c || c == '_'
+    , reserved = Set.fromList ["forall"]
+    }
+
+naturalLangSpec : String -> String -> Parser String
+naturalLangSpec open close =
     succeed (\s -> s)
         |. token open
         |= stateName

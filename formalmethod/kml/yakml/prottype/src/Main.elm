@@ -15,9 +15,24 @@ main =
         , view = view
         }
 
+sampleCode = """
+state Foo @ (-The_state_of_foo-) {
+    transition eventA --> {
+        post {
+          hogehoge
+        } @  {-Comment-}
+    };
+    transition eventB --> {
+        post {
+           piyopiyo
+        } @ {-AAA-}
+    }
+}
+"""
+
 
 init =
-    Model "" Nothing Nothing
+    Model sampleCode Nothing Nothing
 
 
 type alias Model =
