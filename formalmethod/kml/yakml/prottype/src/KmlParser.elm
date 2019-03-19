@@ -24,6 +24,7 @@ type alias State =
 
 type alias Transition =
     { event : String
+    , guird : Maybe Guird
     , post : PostCondition
     }
 
@@ -33,6 +34,10 @@ type alias PostCondition =
     , naturalLang : String
     }
 
+type alias Guird =
+    { expression : String
+    , naturalLang : String
+    }
 
 state : Parser State
 state =
@@ -102,10 +107,37 @@ transition =
         |. spaces
         |= eventExpression
         |. spaces
-        |. symbol "-->"
+        |= guirdOrNone
         |. spaces
         |= transitionBody
         |. spaces
+
+guirdOrNone =
+    oneOf
+    [ succeed Just
+        |= guirdClause
+        |. spaces
+        |. symbol "-->"
+    , succeed Nothing
+        |. symbol "-->"
+    ]
+
+guirdClause =
+    succeed Guird
+        |. keyword "when"
+        |. spaces
+        |= guirdExpression
+        |. spaces
+        |. symbol "@"
+        |. spaces
+        |= naturalLangSpec "[-" "-]"
+
+guirdExpression =
+    variable
+        { start = Char.isLower
+        , inner = \c -> Char.isAlphaNum c || c == '_'
+        , reserved = Set.fromList [ "forall" ]
+        }
 
 
 transitionBody : Parser PostCondition

@@ -17,17 +17,25 @@ main =
 
 
 sampleCode =
-    """
-state Foo @ (-The_state_of_foo-) {
+    """state Foo @ (-The_state_of_foo-) {
     transition eventA --> {
         post {
           hogehoge
-        } @  {-Comment-}
+        } @  {-Post_Conditions_Comment-}
     }
-    transition eventB --> {
+    transition eventB
+    --> {
         post {
            piyopiyo
         } @ {-AAA-}
+    }
+    transition eventB
+          when guird_expression
+            @[-Guird_clause_optional-]
+    --> {
+        post {
+           fugafuga
+        } @ {-CCC-}
     }
 }
 """
@@ -89,6 +97,8 @@ stateView state =
         headerline =
             tr []
                 [ th [] [ text "event" ]
+                , th [] [ text "guird(expression)" ]
+                , th [] [ text "guird(natulal)" ]
                 , th [] [ text "post(expression)" ]
                 , th [] [ text "post(natural)" ]
                 ]
@@ -97,6 +107,8 @@ stateView state =
             \trn ->
                 tr []
                     [ td [] [ trn.event |> text ]
+                    , td [] [ trn.guird |> Maybe.andThen (.expression  >> Just) |> Maybe.withDefault "" |> text ]
+                    , td [] [ trn.guird |> Maybe.andThen (.naturalLang >> Just) |> Maybe.withDefault "" |> text ]
                     , td [] [ trn.post.expression |> text ]
                     , td [] [ trn.post.naturalLang |> text ]
                     ]
