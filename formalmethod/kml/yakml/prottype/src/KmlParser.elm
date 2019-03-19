@@ -35,6 +35,7 @@ type alias PostCondition =
     }
 
 type alias Guird =
+--    { expression : Expression
     { expression : String
     , naturalLang : String
     }
@@ -99,6 +100,76 @@ prosessExpression : Parser Transition
 prosessExpression =
     transition
 
+type alias Expression =
+    { name : String
+    , params : ParameterList
+    }
+
+type ParameterList = ParameterList (List Expression)
+
+expression =
+    succeed identity
+        |= oneOf
+        [ functionCall
+--        , binOperation
+        ]
+
+functionCall : Parser Expression
+functionCall =
+    succeed (\n prms -> Expression n (ParameterList prms))
+        |= varName
+        |= lazy (\_ -> expressionList)
+
+-- binOperation =
+--     succeed (\ lhs op rhs -> Expression op (ParameterList [lhs, rhs]))
+--         |= expression
+--         |= binOperator
+--         |= lazy (\_ -> expression)
+
+-- binOperator =
+--     succeed identity
+--         |= oneOf
+--             [ symbol "+"
+--             , symbol "-"
+--             , symbol "*"
+--             , symbol "/"
+--             , symbol "%"
+--             , symbol "&&"
+--             , symbol "||"
+--             , symbol "=="
+--             , symbol "/="
+--             ]
+
+varName =
+    variable
+        { start = Char.isLower
+        , inner = \c -> Char.isAlphaNum c || c == '_'
+        , reserved = Set.fromList [ "forall" ]
+        }
+
+varTypeName =
+    variable
+        { start = Char.isUpper
+        , inner = \c -> Char.isAlphaNum c || c == '_'
+        , reserved = Set.fromList [ "forall" ]
+        }
+
+expressionList : Parser (List Expression)
+expressionList =
+    succeed (::)
+        |= expression
+        |. spaces
+        |= expressionListTail
+
+expressionListTail : Parser (List Expression)
+expressionListTail =
+    oneOf
+        [ succeed (::)
+            |= expression
+            |. spaces
+            |= lazy (\_ -> expressionListTail)
+        , succeed []
+        ]
 
 transition : Parser Transition
 transition =
@@ -107,26 +178,30 @@ transition =
         |. spaces
         |= eventExpression
         |. spaces
-        |= guirdOrNone
+        |= maybeGuird
+        |. symbol "-->"
         |. spaces
         |= transitionBody
         |. spaces
 
-guirdOrNone =
+maybeGuird =
     oneOf
     [ succeed Just
         |= guirdClause
         |. spaces
-        |. symbol "-->"
     , succeed Nothing
-        |. symbol "-->"
     ]
 
 guirdClause =
     succeed Guird
         |. keyword "when"
         |. spaces
+--        |. symbol "[" --fordebug
+--        |. spaces     --fordebug
         |= guirdExpression
+--        |= expression
+--        |. spaces     --fordebug
+--        |. symbol "]" --fordebug
         |. spaces
         |. symbol "@"
         |. spaces

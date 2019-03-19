@@ -107,7 +107,7 @@ stateView state =
             \trn ->
                 tr []
                     [ td [] [ trn.event |> text ]
-                    , td [] [ trn.guird |> Maybe.andThen (.expression  >> Just) |> Maybe.withDefault "" |> text ]
+--                    , td [] [ trn.guird |> Maybe.andThen (.expression  >> Just) |> Maybe.withDefault "" |> text ]
                     , td [] [ trn.guird |> Maybe.andThen (.naturalLang >> Just) |> Maybe.withDefault "" |> text ]
                     , td [] [ trn.post.expression |> text ]
                     , td [] [ trn.post.naturalLang |> text ]
