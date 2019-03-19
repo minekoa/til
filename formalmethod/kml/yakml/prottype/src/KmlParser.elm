@@ -1,25 +1,32 @@
-module KmlParser exposing (parse, State)
+module KmlParser exposing (State, parse)
 
-import Parser exposing (..)--Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore)
-import Parser.Advanced exposing(Token, chompUntil)
+--Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore)
+
+import Parser exposing (..)
+import Parser.Advanced exposing (Token, chompUntil)
 import Set
+
 
 parse source =
     Parser.run state source
 
 
+
 -- State ::= "state" TypeName "@" "(-" CommentString "-)" "{" StateBody "}:
 
+
 type alias State =
-    { name: String
+    { name : String
     , naturalLang : String
     , body : List Transition
     }
+
 
 type alias Transition =
     { event : String
     , post : PostCondition
     }
+
 
 type alias PostCondition =
     { expression : String
@@ -37,16 +44,19 @@ state =
         |. spaces
         |. symbol "@"
         |. spaces
-        |= naturalLangSpec "(-" "-)" --NotNestable
+        |= naturalLangSpec "(-" "-)"
+        --NotNestable
         |. spaces
         |= stateBody
 
+
 stateName =
     variable
-    { start = Char.isUpper
-    , inner = \c -> Char.isAlphaNum c || c == '_'
-    , reserved = Set.fromList ["forall"]
-    }
+        { start = Char.isUpper
+        , inner = \c -> Char.isAlphaNum c || c == '_'
+        , reserved = Set.fromList [ "forall" ]
+        }
+
 
 stateBody : Parser (List Transition)
 stateBody =
@@ -58,7 +68,10 @@ stateBody =
         |. spaces
         |. symbol "}"
 
+
+
 --Transition ::= "transition" EventExpression (Guird)? "-->" (TransitionBody | InternalChoiceList)
+
 
 prosessExpressions : Parser (List Transition)
 prosessExpressions =
@@ -66,18 +79,21 @@ prosessExpressions =
         |= prosessExpression
         |= prosessExpressionTail
 
+
 prosessExpressionTail : Parser (List Transition)
 prosessExpressionTail =
     oneOf
         [ succeed (::)
-              |= prosessExpression
-              |= lazy (\_ -> prosessExpressionTail)
+            |= prosessExpression
+            |= lazy (\_ -> prosessExpressionTail)
         , succeed []
         ]
+
 
 prosessExpression : Parser Transition
 prosessExpression =
     transition
+
 
 transition : Parser Transition
 transition =
@@ -91,6 +107,7 @@ transition =
         |= transitionBody
         |. spaces
 
+
 transitionBody : Parser PostCondition
 transitionBody =
     succeed identity
@@ -100,6 +117,7 @@ transitionBody =
         |. spaces
         |. symbol "}"
         |. spaces
+
 
 postCondition =
     -- post {
@@ -120,20 +138,22 @@ postCondition =
         |. spaces
         |= naturalLangSpec "{-" "-}"
 
+
 postExpression =
     variable
-    { start = Char.isLower
-    , inner = \c -> Char.isAlphaNum c || c == '_'
-    , reserved = Set.fromList ["forall"]
-    }
+        { start = Char.isLower
+        , inner = \c -> Char.isAlphaNum c || c == '_'
+        , reserved = Set.fromList [ "forall" ]
+        }
 
 
 eventExpression =
     variable
-    { start = Char.isLower
-    , inner = \c -> Char.isAlphaNum c || c == '_'
-    , reserved = Set.fromList ["forall"]
-    }
+        { start = Char.isLower
+        , inner = \c -> Char.isAlphaNum c || c == '_'
+        , reserved = Set.fromList [ "forall" ]
+        }
+
 
 naturalLangSpec : String -> String -> Parser String
 naturalLangSpec open close =
@@ -142,6 +162,7 @@ naturalLangSpec open close =
         |= stateName
         |. token close
 
+
 toToken : String -> Parser.Advanced.Token Problem
 toToken str =
-  Parser.Advanced.Token str (Expecting str)
+    Parser.Advanced.Token str (Expecting str)

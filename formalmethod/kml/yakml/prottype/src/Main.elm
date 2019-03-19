@@ -4,9 +4,9 @@ import Browser exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-
 import KmlParser
 import Parser
+
 
 main =
     Browser.sandbox
@@ -15,13 +15,15 @@ main =
         , view = view
         }
 
-sampleCode = """
+
+sampleCode =
+    """
 state Foo @ (-The_state_of_foo-) {
     transition eventA --> {
         post {
           hogehoge
         } @  {-Comment-}
-    };
+    }
     transition eventB --> {
         post {
            piyopiyo
@@ -32,12 +34,15 @@ state Foo @ (-The_state_of_foo-) {
 
 
 init =
-    Model sampleCode Nothing Nothing
+    Model
+        sampleCode
+        (KmlParser.parse sampleCode)
+        Nothing
 
 
 type alias Model =
     { source : String
-    , parseResult : Maybe (Result (List Parser.DeadEnd) KmlParser.State)
+    , parseResult : Result (List Parser.DeadEnd) KmlParser.State
     , message : Maybe String
     }
 
@@ -50,9 +55,9 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         Input s ->
-            { model |
-                  source = s
-            ,  parseResult = Just (KmlParser.parse s)
+            { model
+                | source = s
+                , parseResult = KmlParser.parse s
             }
 
 
@@ -61,13 +66,45 @@ view model =
     div []
         [ textarea [ onInput Input, value model.source ] []
         , div [] [ model.message |> Maybe.withDefault "" |> text ]
-        , div [] [ case model.parseResult of
-                       Nothing -> text ""
-                       Just ret ->
-                           case ret of
-                               Ok s ->
-                                   text <| Debug.toString s
-                               Err e ->
-                                   text <| Debug.toString e
-                 ]
+        , div []
+            [ case model.parseResult of
+                Ok s ->
+                    text <| Debug.toString s
+
+                Err e ->
+                    text <| Debug.toString e
+            ]
+        , case model.parseResult of
+            Ok s ->
+                stateView s
+
+            Err e ->
+                text ""
+        ]
+
+
+stateView : KmlParser.State -> Html Msg
+stateView state =
+    let
+        headerline =
+            tr []
+                [ th [] [ text "event" ]
+                , th [] [ text "post(expression)" ]
+                , th [] [ text "post(natural)" ]
+                ]
+
+        transitionToLine =
+            \trn ->
+                tr []
+                    [ td [] [ trn.event |> text ]
+                    , td [] [ trn.post.expression |> text ]
+                    , td [] [ trn.post.naturalLang |> text ]
+                    ]
+    in
+    div []
+        [ h1 [] [ text <| state.name ]
+        , p [] [ text <| state.naturalLang ]
+        , table [] <|
+            headerline
+                :: (state.body |> List.map transitionToLine)
         ]
