@@ -50,17 +50,34 @@ stateName =
 
 stateBody : Parser (List Transition)
 stateBody =
-    sequence
-        { start = "{"
-        , separator = ";"
-        , end   = "}"
-        , spaces = spaces
-        , item = transition
-        , trailing = Forbidden
-        }
+    succeed identity
+        |. spaces
+        |. symbol "{"
+        |. spaces
+        |= prosessExpressions
+        |. spaces
+        |. symbol "}"
 
 --Transition ::= "transition" EventExpression (Guird)? "-->" (TransitionBody | InternalChoiceList)
 
+prosessExpressions : Parser (List Transition)
+prosessExpressions =
+    succeed (::)
+        |= prosessExpression
+        |= prosessExpressionTail
+
+prosessExpressionTail : Parser (List Transition)
+prosessExpressionTail =
+    oneOf
+        [ succeed (::)
+              |= prosessExpression
+              |= lazy (\_ -> prosessExpressionTail)
+        , succeed []
+        ]
+
+prosessExpression : Parser Transition
+prosessExpression =
+    transition
 
 transition : Parser Transition
 transition =
