@@ -43,3 +43,30 @@ sizeof(+a)  =4
 うーん、あっている。
 
 なにをどうすれば `1` になるのかさっぱりわかんない
+
+## 答え
+
+こゆこと
+
+```c++
+    std::cout << (sizeof(+a)) ["23456"] << std::endl;
+    std::cout << sizeof ((+a)["23456"]) << std::endl;
+```
+
+```console
+6
+1
+```
+
+分解するとこう
+
+```c++
+    std::cout << (+a)["23456"] << std::endl;
+    std::cout << sizeof('3') << std::endl;
+```
+
+```console
+3
+1
+```
+
