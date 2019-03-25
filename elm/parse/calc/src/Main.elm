@@ -29,17 +29,17 @@ unOperator =
 
 binOperator =
     oneOf
-        [ map (\_ -> BinMinus) (keyword "-")
-        , map (\_ -> BinPlus) (keyword "+")
+        [ map (\_ -> Minus) (keyword "-")
+        , map (\_ -> Plus) (keyword "+")
         ]
 
 
 type UnOperator = UnMinus | UnPlus
-type BinOperator = BinMinus | BinPlus
+type BinOperator = Minus | Plus
 
 type CalcAST
     =  Number Float
-    | BinOperation BinOperator CalcAST CalcAST
+    | BinOperation CalcAST BinOperator CalcAST
     | UnOperation  UnOperator CalcAST
     | Paren CalcAST
 
@@ -47,10 +47,13 @@ type CalcAST
 term : Parser CalcAST
 term =
     -- 単項
-    oneOf
-        [ paren
-        , number
-        ]
+    number
+--    oneOf
+--        [ number
+--        , paren
+--        ]
+
+
 expr =
     -- 多項
     oneOf
@@ -67,11 +70,24 @@ unnayOperation =
         |= unOperator
         |= term
 
-binOperation =
-    succeed (\ t1 op t2 -> BinOperation op t1 t2)
-        |= lazy (\_ -> term)
-        |= binOperator
-        |= lazy (\_ -> expr)
+binOperation : Parser CalcAST
+binOperation = 
+    loop (Number 0) binOperationHelper
+
+--    succeed (\lhs rhs -> BinOperation lhs Plus rhs)
+--        |= term
+--        |= number
+--        |= loop (Number 0) binOperationHelper
+
+binOperationHelper lhs =
+    oneOf
+        [ succeed (\op rhs -> Loop (BinOperation lhs op rhs))
+            |= binOperator
+--            |= term
+            |= number
+        , succeed ()
+            |> map (\_ -> Done lhs)
+        ]
 
 paren =
     succeed Paren
@@ -81,7 +97,9 @@ paren =
 
 
 parse source =
-    Parser.run expr source
+--    Parser.run paren source
+    Parser.run binOperation source
+--    Parser.run expr source
 
 ------------------------------------------------------------
 
