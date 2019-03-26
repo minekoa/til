@@ -4,29 +4,29 @@ import Browser exposing (..)
 import Html exposing (Html, div, text, textarea)
 import Html.Attributes exposing (value)
 import Html.Events exposing (onInput)
-
-
-
 import Parser exposing (..)
 import Parser.Advanced exposing (Token, chompUntil)
+
 
 -- expression ::= term
 --            |   expression '+' term
 --            |   expression '-' term
-
 -- term ::= block
 --       | term '*' block
 --       | term '/' block
-
 -- block ::= '(' expression ')'
 --        | integer
 
+
+unOperator : Parser UnOperator
 unOperator =
     oneOf
-        [ map (\_ -> Positive) (keyword "-")
-        , map (\_ -> Negative) (keyword "+")
+        [ map (\_ -> Positive) (keyword "+")
+        , map (\_ -> Negative) (keyword "-")
         ]
 
+
+binOperator : Parser BinOperator
 binOperator =
     oneOf
         [ map (\_ -> Minus) (keyword "-")
@@ -34,13 +34,20 @@ binOperator =
         ]
 
 
-type UnOperator = Positive | Negative
-type BinOperator = Minus | Plus
+type UnOperator
+    = Positive
+    | Negative
+
+
+type BinOperator
+    = Minus
+    | Plus
+
 
 type CalcAST
-    =  Number Float
+    = Number Float
     | BinOperation CalcAST BinOperator CalcAST
-    | UnOperation  UnOperator CalcAST
+    | UnOperation UnOperator CalcAST
     | Paren CalcAST
 
 
@@ -53,11 +60,15 @@ term =
         , unnayOperation
         ]
 
+
+program : Parser CalcAST
 program =
     succeed identity
         |= expr
         |. end
 
+
+expr : Parser CalcAST
 expr =
     -- 多項
     oneOf
@@ -65,22 +76,28 @@ expr =
         , lazy (\_ -> term)
         ]
 
+
+number : Parser CalcAST
 number =
     succeed Number
         |. symbol "'"
         |= float
 
+
+unnayOperation : Parser CalcAST
 unnayOperation =
     succeed UnOperation
         |= unOperator
-        |= lazy (\_-> term)
+        |= lazy (\_ -> term)
+
 
 binOperation : Parser CalcAST
-binOperation = 
+binOperation =
     (lazy (\_ -> term))
         |> andThen (\lhs -> loop lhs binOperationHelper)
 
 
+binOperationHelper : CalcAST -> Parser (Step CalcAST CalcAST)
 binOperationHelper lhs =
     oneOf
         [ succeed (\op rhs -> Loop (BinOperation lhs op rhs))
@@ -89,6 +106,8 @@ binOperationHelper lhs =
         , succeed (Done lhs)
         ]
 
+
+paren : Parser CalcAST
 paren =
     succeed Paren
         |. symbol "("
@@ -98,6 +117,8 @@ paren =
 
 parse source =
     Parser.run program source
+
+
 
 ------------------------------------------------------------
 
@@ -109,17 +130,21 @@ main =
         , view = view
         }
 
-type alias Model  =
+
+type alias Model =
     { source : String
     , parseResult : Result (List Parser.DeadEnd) CalcAST
     , message : Maybe String
     }
 
+
 init =
     Model "" (parse "") Nothing
 
+
 type Msg
     = Input String
+
 
 update : Msg -> Model -> Model
 update msg model =
@@ -129,6 +154,7 @@ update msg model =
                 | source = s
                 , parseResult = parse s
             }
+
 
 view : Model -> Html Msg
 view model =
