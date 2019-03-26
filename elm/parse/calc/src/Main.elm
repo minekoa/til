@@ -18,6 +18,16 @@ import Parser.Advanced exposing (Token, chompUntil)
 --        | integer
 
 
+type UnOperator
+    = Positive
+    | Negative
+
+
+type BinOperator
+    = Minus
+    | Plus
+
+
 unOperator : Parser UnOperator
 unOperator =
     oneOf
@@ -34,31 +44,11 @@ binOperator =
         ]
 
 
-type UnOperator
-    = Positive
-    | Negative
-
-
-type BinOperator
-    = Minus
-    | Plus
-
-
 type CalcAST
     = Number Float
     | BinOperation CalcAST BinOperator CalcAST
     | UnOperation UnOperator CalcAST
     | Paren CalcAST
-
-
-term : Parser CalcAST
-term =
-    -- 単項
-    oneOf
-        [ number
-        , paren
-        , unnayOperation
-        ]
 
 
 program : Parser CalcAST
@@ -74,6 +64,16 @@ expr =
     oneOf
         [ binOperation
         , lazy (\_ -> term)
+        ]
+
+
+term : Parser CalcAST
+term =
+    -- 単項
+    oneOf
+        [ number
+        , paren
+        , unnayOperation
         ]
 
 
