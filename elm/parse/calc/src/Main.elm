@@ -47,11 +47,10 @@ type CalcAST
 term : Parser CalcAST
 term =
     -- 単項
-    number
---    oneOf
---        [ number
---        , paren
---        ]
+    oneOf
+        [ number
+        , paren
+        ]
 
 
 expr =
@@ -63,7 +62,9 @@ expr =
 
 number =
     succeed Number
+        |. symbol "'"
         |= float
+        |. symbol "'"
 
 unnayOperation =
     succeed UnOperation
@@ -72,12 +73,10 @@ unnayOperation =
 
 binOperation : Parser CalcAST
 binOperation = 
-    loop (Number 0) binOperationHelper
+--    term
+    number
+        |> andThen (\lhs -> loop lhs binOperationHelper)
 
---    succeed (\lhs rhs -> BinOperation lhs Plus rhs)
---        |= term
---        |= number
---        |= loop (Number 0) binOperationHelper
 
 binOperationHelper lhs =
     oneOf
@@ -85,8 +84,7 @@ binOperationHelper lhs =
             |= binOperator
 --            |= term
             |= number
-        , succeed ()
-            |> map (\_ -> Done lhs)
+        , succeed (Done lhs)
         ]
 
 paren =
