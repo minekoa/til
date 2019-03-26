@@ -23,8 +23,8 @@ import Parser.Advanced exposing (Token, chompUntil)
 
 unOperator =
     oneOf
-        [ map (\_ -> UnMinus) (keyword "-")
-        , map (\_ -> UnPlus) (keyword "+")
+        [ map (\_ -> Positive) (keyword "-")
+        , map (\_ -> Negative) (keyword "+")
         ]
 
 binOperator =
@@ -34,7 +34,7 @@ binOperator =
         ]
 
 
-type UnOperator = UnMinus | UnPlus
+type UnOperator = Positive | Negative
 type BinOperator = Minus | Plus
 
 type CalcAST
@@ -50,8 +50,13 @@ term =
     oneOf
         [ number
         , paren
+        , unnayOperation
         ]
 
+program =
+    succeed identity
+        |= expr
+        |. end
 
 expr =
     -- 多項
@@ -64,17 +69,15 @@ number =
     succeed Number
         |. symbol "'"
         |= float
-        |. symbol "'"
 
 unnayOperation =
     succeed UnOperation
         |= unOperator
-        |= term
+        |= lazy (\_-> term)
 
 binOperation : Parser CalcAST
 binOperation = 
---    term
-    number
+    (lazy (\_ -> term))
         |> andThen (\lhs -> loop lhs binOperationHelper)
 
 
@@ -82,8 +85,7 @@ binOperationHelper lhs =
     oneOf
         [ succeed (\op rhs -> Loop (BinOperation lhs op rhs))
             |= binOperator
---            |= term
-            |= number
+            |= lazy (\_ -> term)
         , succeed (Done lhs)
         ]
 
@@ -95,9 +97,7 @@ paren =
 
 
 parse source =
---    Parser.run paren source
-    Parser.run binOperation source
---    Parser.run expr source
+    Parser.run program source
 
 ------------------------------------------------------------
 
