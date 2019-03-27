@@ -2,10 +2,11 @@ module Main exposing (Model, Msg(..), init, main, view)
 
 import Browser exposing (..)
 import Html exposing (Html, div, text, textarea)
-import Html.Attributes exposing (value)
+import Html.Attributes exposing (class, style, value)
 import Html.Events exposing (onInput)
 import Parser exposing (..)
 import Parser.Advanced exposing (Token, chompUntil)
+
 
 
 -- expression ::= term
@@ -93,7 +94,7 @@ unnayOperation =
 
 binOperation : Parser CalcAST
 binOperation =
-    (lazy (\_ -> term))
+    lazy (\_ -> term)
         |> andThen (\lhs -> loop lhs binOperationHelper)
 
 
@@ -170,4 +171,63 @@ view model =
                     text <| Debug.toString e
             ]
         , div [] [ model.message |> Maybe.withDefault "" |> text ]
+        , div []
+            [ case model.parseResult of
+                Ok ast ->
+                    viewAST ast
+
+                Err e ->
+                    text ""
+            ]
         ]
+
+
+astAttribute : List (Html.Attribute Msg)
+astAttribute =
+    [ class "ast"
+    , style "border" "1px dotted green"
+    , style "padding" "0.5em"
+    ]
+
+
+viewAST : CalcAST -> Html Msg
+viewAST ast =
+    case ast of
+        Number f ->
+            div astAttribute [ text <| String.fromFloat f ]
+
+        BinOperation rhs op lhs ->
+            div astAttribute
+                [ viewAST rhs
+                , viewBinOperator op
+                , viewAST lhs
+                ]
+
+        UnOperation op v ->
+            div astAttribute
+                [ viewUnOperator op
+                , viewAST v
+                ]
+
+        Paren v ->
+            viewAST v
+
+
+viewBinOperator : BinOperator -> Html Msg
+viewBinOperator op =
+    case op of
+        Minus ->
+            text "(-)"
+
+        Plus ->
+            text "(+)"
+
+
+viewUnOperator : UnOperator -> Html Msg
+viewUnOperator op =
+    case op of
+        Positive ->
+            text "+"
+
+        Negative ->
+            text "-"
