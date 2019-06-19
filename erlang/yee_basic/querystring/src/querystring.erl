@@ -39,7 +39,7 @@ get_key(PropList) ->
                  ) -> {value, calendar:date()} | none.
 lookup_date(Tag, PropList) ->
     case
-        proplists:lookup_all(<<"to">>, PropList)
+        proplists:lookup_all(Tag, PropList)
     of
         []               -> none;
         [{_, Value} | _] -> {value, parse_date(Value)}
