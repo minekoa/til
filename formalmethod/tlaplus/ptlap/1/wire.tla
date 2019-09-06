@@ -19,9 +19,8 @@ process Wire \in 1..2
         amount \in 1..acc[sender];
    
 begin
-    CheckFunds:
+    CheckAndWithdraw:
         if amount <= acc[sender] then
-            Withdraw:
                 acc[sender] := acc[sender] - amount;
             Deposit:
                 acc[receiver] := acc[receiver] + amount;
@@ -47,25 +46,22 @@ Init == (* Global variables *)
         /\ sender = [self \in 1..2 |-> "alice"]
         /\ receiver = [self \in 1..2 |-> "bob"]
         /\ amount \in [1..2 -> 1..acc[sender[CHOOSE self \in  1..2 : TRUE]]]
-        /\ pc = [self \in ProcSet |-> "CheckFunds"]
+        /\ pc = [self \in ProcSet |-> "CheckAndWithdraw"]
 
-CheckFunds(self) == /\ pc[self] = "CheckFunds"
-                    /\ IF amount[self] <= acc[sender[self]]
-                          THEN /\ pc' = [pc EXCEPT ![self] = "Withdraw"]
-                          ELSE /\ pc' = [pc EXCEPT ![self] = "Done"]
-                    /\ UNCHANGED << people, acc, sender, receiver, amount >>
-
-Withdraw(self) == /\ pc[self] = "Withdraw"
-                  /\ acc' = [acc EXCEPT ![sender[self]] = acc[sender[self]] - amount[self]]
-                  /\ pc' = [pc EXCEPT ![self] = "Deposit"]
-                  /\ UNCHANGED << people, sender, receiver, amount >>
+CheckAndWithdraw(self) == /\ pc[self] = "CheckAndWithdraw"
+                          /\ IF amount[self] <= acc[sender[self]]
+                                THEN /\ acc' = [acc EXCEPT ![sender[self]] = acc[sender[self]] - amount[self]]
+                                     /\ pc' = [pc EXCEPT ![self] = "Deposit"]
+                                ELSE /\ pc' = [pc EXCEPT ![self] = "Done"]
+                                     /\ acc' = acc
+                          /\ UNCHANGED << people, sender, receiver, amount >>
 
 Deposit(self) == /\ pc[self] = "Deposit"
                  /\ acc' = [acc EXCEPT ![receiver[self]] = acc[receiver[self]] + amount[self]]
                  /\ pc' = [pc EXCEPT ![self] = "Done"]
                  /\ UNCHANGED << people, sender, receiver, amount >>
 
-Wire(self) == CheckFunds(self) \/ Withdraw(self) \/ Deposit(self)
+Wire(self) == CheckAndWithdraw(self) \/ Deposit(self)
 
 (* Allow infinite stuttering to prevent deadlock on termination. *)
 Terminating == /\ \A self \in ProcSet: pc[self] = "Done"
@@ -81,5 +77,5 @@ Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 \* END TRANSLATION
 =============================================================================
 \* Modification History
-\* Last modified Fri Sep 06 13:47:59 JST 2019 by terazono
+\* Last modified Fri Sep 06 14:10:09 JST 2019 by terazono
 \* Created Fri Aug 16 11:27:01 JST 2019 by minekoa

@@ -226,3 +226,58 @@ Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 変わった変数なのか
 
 で流れを見れば、典型的な TAS の問題だね。
+
+## TASの修正
+
+```
+    ・
+    ・
+process Wire \in 1..2
+    variables
+        sender = "alice",
+        receiver = "bob",
+        amount \in 1..acc[sender];
+
+begin
+    CheckAndWithdraw:
+        if amount <= acc[sender] then
+                acc[sender] := acc[sender] - amount;
+            Deposit:
+                acc[receiver] := acc[receiver] + amount;
+        end if;
+end process;
+end algorithm;*)
+```
+
+CheckAndWithDraw として1状態遷移にした。
+
+TLA+
+
+```
+Init == (* Global variables *)
+        /\ people = {"alice", "bob"}
+        /\ acc = [p \in people |-> 5]
+        (* Process Wire *)
+        /\ sender = [self \in 1..2 |-> "alice"]
+        /\ receiver = [self \in 1..2 |-> "bob"]
+        /\ amount \in [1..2 -> 1..acc[sender[CHOOSE self \in  1..2 : TRUE]]]
+        /\ pc = [self \in ProcSet |-> "CheckAndWithdraw"]
+
+CheckAndWithdraw(self) == /\ pc[self] = "CheckAndWithdraw"
+                          /\ IF amount[self] <= acc[sender[self]]
+                                THEN /\ acc' = [acc EXCEPT ![sender[self]] = acc[sender[self]] - amount[self]]
+                                     /\ pc' = [pc EXCEPT ![self] = "Deposit"]
+                                ELSE /\ pc' = [pc EXCEPT ![self] = "Done"]
+                                     /\ acc' = acc
+                          /\ UNCHANGED << people, sender, receiver, amount >>
+
+Deposit(self) == /\ pc[self] = "Deposit"
+                 /\ acc' = [acc EXCEPT ![receiver[self]] = acc[receiver[self]] + amount[self]]
+                 /\ pc' = [pc EXCEPT ![self] = "Done"]
+                 /\ UNCHANGED << people, sender, receiver, amount >>
+
+Wire(self) == CheckAndWithdraw(self) \/ Deposit(self)
+```
+
+当然モデルチェックは通る。
+まぁ。そうなるよねってはなしでおしまい。
