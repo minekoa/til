@@ -62,3 +62,85 @@ TLC をみる
 > 変更をおこない、モデルが再び通過することを確認します。
 
 ## Multiple Processes
+
+`process`というブロックが`algorithm`のなかに作れるみたい
+
+```
+(*--algorithm wire
+
+variables
+    people = {"alice", "bob"},
+    acc = [p \in people |-> 5],
+
+define
+    NoOverdrafts == \A p \in people: acc[p] >= 0
+end define;
+
+process Wire \in 1..2
+    variables
+        sender = "alice",
+        receiver = "bob",
+        amount \in 1..acc[sender];
+
+begin
+    Withdraw:
+        acc[sender] := acc[sender] - amount;
+    Deposit:
+        acc[receiver] := acc[receiver] + amount;
+end process;
+end algorithm;*)
+```
+
+生成される TLCコードみると
+
+```
+ProcSet == (1..2)
+
+Init == (* Global variables *)
+        /\ people = {"alice", "bob"}
+        /\ acc = [p \in people |-> 5]
+        (* Process Wire *)
+        /\ sender = [self \in 1..2 |-> "alice"]
+        /\ receiver = [self \in 1..2 |-> "bob"]
+        /\ amount \in [1..2 -> 1..acc[sender[CHOOSE self \in  1..2 : TRUE]]]
+        /\ pc = [self \in ProcSet |-> "Withdraw"]
+
+Withdraw(self) == /\ pc[self] = "Withdraw"
+                  /\ acc' = [acc EXCEPT ![sender[self]] = acc[sender[self]] - amount[self]]
+                  /\ pc' = [pc EXCEPT ![self] = "Deposit"]
+                  /\ UNCHANGED << people, sender, receiver, amount >>
+
+Deposit(self) == /\ pc[self] = "Deposit"
+                 /\ acc' = [acc EXCEPT ![receiver[self]] = acc[receiver[self]] + amount[self]]
+                 /\ pc' = [pc EXCEPT ![self] = "Done"]
+                 /\ UNCHANGED << people, sender, receiver, amount >>
+
+Wire(self) == Withdraw(self) \/ Deposit(self)
+```
+
+なんか OOPみたいになってきたな。
+コンテキスト self をアクションが持つようになるのか。
+
+でプロセス変数はマップに姿を変えるのか。
+
+`self` is なんぞは
+
+```
+        /\ sender = [self \in 1..2 |-> "alice"]
+```
+
+```
+        /\ pc = [self \in ProcSet |-> "Withdraw"]
+```
+
+のふた通りの書き方が生成されてて、若干キモい
+（実は違いが在るのかな？）
+
+
+さて、モデルチェックしてみると、エラー出るねって話。
+グローバル変数に２つのプロセスがアクセスしてるんだからなー。
+
+> これを再変換して再実行すると、再びエラーが発生します。
+> 他のシステムが Aliceが6ドル wire しようとするのを停止している場合でも
+> そのシステムは複数の配線では機能しません。
+> その後、両方の withdraw が発生し、仕様が失敗します.
