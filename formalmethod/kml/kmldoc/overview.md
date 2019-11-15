@@ -128,7 +128,7 @@ state SimpleMsgPage (message : String) {
     --> {
         post {
              target state;
-             state' = STOP;
+             state' = SKIP; // 正常終了
         } @ {-
              アプリケーション終了する
         -}
