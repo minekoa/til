@@ -12,6 +12,10 @@ type Button = { label : String
 type Input = { text : String
              , enabled : Bool
              }
+
+type Label = { text : String
+             , visible : Bool
+             }
 ```
 
 events.kml
