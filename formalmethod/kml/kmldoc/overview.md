@@ -11,23 +11,23 @@ type Button = { label : String
 
 type Input = { text : String
              , enabled : Bool
-             }
+             };
 
 type Label = { text : String
              , visible : Bool
-             }
+             };
 ```
 
 events.kml
 
 ```
-event
-  = entry                        @(- ページ遷移 -)
-  | piyoInput_Inputed of String  @(- ぴよインプット入力 -)
-  | doButton_clicked             @(- 実行ボタンクリック -)
-  | clearButton_clicked          @(- 削除ボタンクリック -)
-  | returnButton_clicked         @(- 戻るボタンクリック -)
-  | exitButton_clicked           @(- アプリ終了ボタンクリック -)
+event = entry                        @(- ページ遷移 -)
+      | piyoInput_Inputed of String  @(- ぴよインプット入力 -)
+      | doButton_clicked             @(- 実行ボタンクリック -)
+      | clearButton_clicked          @(- 削除ボタンクリック -)
+      | returnButton_clicked         @(- 戻るボタンクリック -)
+      | exitButton_clicked           @(- アプリ終了ボタンクリック -)
+;
 ```
 
 SimplePage.kml
