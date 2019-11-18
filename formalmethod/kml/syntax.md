@@ -5,35 +5,43 @@
 
 ## 値と型
 
-```bnf
+```ebnf
 variable_name ::= [a-z][a-zA-Z0-9_]*[']?
+;
 
 lvalue ::= "(" lvalue ")"
          | variable_name
          | variable_name : type_anotation
+;
 
 lvalues ::= lvalue
           | lvalue "," lvalues
+;
 
 type_anotation ::= ":" type_instance
-
+;
 ```
 
 ```ebnf
 type_name ::= [A-Z][a-zA-Z0-9_]*
+;
+
 type_constructor ::= type_name
+;
 
 type_instance ::= "(" type_instance ")"
                 | type_constructor
                 | type_constructor type_rvalues
+;
 
 type_rvalues ::= type_instance
                | type_instance type_rvalues
+;
 ```
 
 ## 式と述語
 
-```
+```ebnf
 expression ::= "(" expression ")"
              | literal
              | variable_name
@@ -48,10 +56,12 @@ expression ::= "(" expression ")"
              | let_expression
              | let_be_st_expression
              | predicate
+;
 
 predicate ::= logical_expression
             | comparison_expression
             | quantifier_expression
+;
 ```
 
 ### 関数適用
@@ -59,9 +69,11 @@ predicate ::= logical_expression
 ```ebnf
 function_call ::= variable_name
                 | variable_name expression_list
+;
 
 expression_list ::= expression
                   | expression expression_list
+;
 ```
 
 ### 比較演算
@@ -73,6 +85,7 @@ comparison_expression ::= expression "=" expression
                         | expression "<=" expression
                         | expression ">" expression
                         | expression ">=" expression
+;
 ```
 
 ### 論理演算
@@ -83,15 +96,17 @@ logical_expression ::= predicate "&&" predicate
                      | predicate "=>" predicate
                      | predicate "xor" predicate
                      | "!" predicate
+;
 ```
 
 ### 限量式
 
-```
+```ebnf
 quantifier_expression ::= "forall" ..
                         | "exists" ..
                         | "exists!" ..
                         | expression "in" set_expression
+;
 ```
 
 (WIP)
@@ -101,13 +116,17 @@ quantifier_expression ::= "forall" ..
 
 ```ebnf
 event_name ::= [a-z][a-zA-Z0-9_]*
+;
+
 channel_name ::= [a-z][a-zA-Z0-9_]*
+;
 
 event ::= event_name
         | event_name rvalues
         | channel "!" rvalues
         | channel "?" lvalues
         | "(" event ")"
+;
 ```
 
 イベントは、イベント名もしくは引数つきイベント名、
@@ -115,7 +134,7 @@ event ::= event_name
 
 例
 
-```
+```kml
 cancelButton_Clicked
 
 nameInput_Inputted a_str
@@ -131,24 +150,28 @@ resuctChan ? isOk
 ```ebnf
 event_set ::= "{" events "}"
             | "{|" chan_or_events "|}"
+;
 
 events ::=
          | events_tail
+;
 
 events_tail ::= event
               | event "," events_tail
-
-
+;
 
 chan_or_events ::=
                  | chan_or_events_tail
+;
 
 chan_or_events_tail ::=
                       | chan_or_event
                       | chan_or_event "," chan_or_events_tail
+;
 
 chan_or_event ::= event
                 | channel
+;
 ```
 
 ```ebnf
@@ -160,6 +183,7 @@ process_expression ::= process
                     | process_expression "|||" process_expression
                     | "STOP"
                     | "SKIP"
+;
 ```
 
 
@@ -179,7 +203,7 @@ process_expression ::= process
 
 ### リテラル
 
-```
+```ebnf
 literal ::= number_literal
           | chr_literal
           | tuple_literal
@@ -188,6 +212,7 @@ literal ::= number_literal
           | list_literal
           | map_riteral
           | lambda_expression
+;
 ```
 
 
@@ -198,9 +223,11 @@ literal ::= number_literal
 condition_list ::=
                  | condition ";"
                  | condition ";" conditions
+;
 
 condition ::= "target" var_list
             | predicate
+;
 ```
 
 ## 定義
@@ -211,44 +238,54 @@ condition ::= "target" var_list
 ```ebnf
 parametoric_type_name ::= type_name
                         | type_name type_lvalues
+;
 
 type_lvalues ::= type_lvalue
                | type_lvalue type_lvalues
+;
 
 type_lvalue  ::= ['][a-z][a-zA-Z0-9_]*
+;
 
 type_instance_or_arg ::= type_instance
                        | type_lvalue
-
+;
 
 
 
 type_def_statement ::= "type" parametoric_type_name "=" type_def_exp ";"
+;
 
 type_def_exp ::= "(" type_def_exp ")
                | variant_def
                | record_def
-
+;
 
 variant_deff ::= dadd_type_def
+;
 
 dadd_type_def ::= dsum_type_def
                 | dsum_type_def "|" dadd_type_def
+;
 
 dsum_type_def ::= parametoric_type_name "of" dsum_type_def_tuple
                 | type_name
+;
 
 dsum_type_def_tuple ::= type_instance_or_arg
                       | type_instance_or_arg "*" dsum_type_def_tuple
-
+;
 
 record_def ::= "{" rec_field_list "}"
+;
 
 rec_field ::= fieldName ":" type_expression
             | fieldName ":" record_def
+;
 
 rec_field_list ::= rec_field
                  | rec_field "," rec_field_list
+;
 ```
 
 例
@@ -256,7 +293,7 @@ rec_field_list ::= rec_field
 ```kml
 type Hoge = Id of String;
 
-type Point = Point of Int * Int
+type Point = Point of Int * Int;
 
 type OkCancel = OK
               | Cancel
@@ -283,15 +320,19 @@ type Hoge 'a = Result 'a of Maybe 'a
 
 ```ebnf
 variable_def_statement ::= "var" variable_name type_anotation varriable_initializer ";"
+;
 
 type_anotation ::=
                  | ":" type
+;
 
 varriable_initializer ::=
                         | "=" expression
+;
 
 variable_def_statement_list ::= variable_def_statement
                               | variable_def_statement variable_def_statement_list
+;
 ```
 
 例
@@ -310,28 +351,38 @@ var hogeHoge3 : String;
 
 ```ebnf
 process_name ::= [A-Z][a-zA-Z0-9_]*
+;
 
 process_lvalue ::= process_name
                  | process_name lvalues
+;
 
 state_def ::= "state" process_lvalue "{" state_body "}"
             | "state" process_lvalue "{" state_body "}" natural_spec_block
+;
 
 state_body ::= state_variables state_invariant state_transition_list
+;
 
 state_variables ::= variable_def_statement_list
+;
 
 state_invariant ::=
                   | "invariant" condition_block
+;
 
 state_transition_list ::= "transition" event_lvalue guead_phrase "-->" "{" post_condition "}"
                         | "transition" event_lvalue guead_phrase "-->" "{" post_condition "}" @ natural_spec_for_block
+;
 
 guead_phrase ::= "when" predicate natural_spec_for_phrase
+;
 
 post_condition ::= "post" condition_block
+;
 
 condition_block ::= "{" condition_list "}" natural_spec_for_block
+;
 ```
 
 
@@ -340,12 +391,16 @@ condition_block ::= "{" condition_list "}" natural_spec_for_block
 
 ```ebnf
 natural_spec_for_block ::= "@" "{-" comment_string "-}"
+;
 
 natural_spec_for_expression ::= "@" "(-" comment_string "-)"
+;
 
 natural_spec_for_phrase ::= "@" "[-" comment_string "-]"
+;
 
 natural_spec_for_statement ::= "@" "--" comment_string crlf
+;
 ```
 
 (WIP) `comment_string` が手抜き
