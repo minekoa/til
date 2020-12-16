@@ -13,3 +13,16 @@
 
 https://twitter.com/nekotrackball/status/1315555155513765888
 
+## Review
+
+### Orbit の名を関する Modern TurboRing 
+
+### 40mm でも大きなボールの操作感
+
+
+### ScrollRing
+
+## 各部の詳細
+
+[![thumbnail](https://twitter.com/nekotrackball/status/1315555155513765888)](https://twitter.com/nekotrackball/status/1315555155513765888
+)
