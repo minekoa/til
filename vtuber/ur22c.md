@@ -4,3 +4,6 @@
 * [初心者向けスタインバーグUR22mkIIのループバック機能の使い方](https://kozou-arekore.com/ur22mkii-loopback/)
 * [Steinberg UR22Cをレビュー。1万円台で機能性抜群のオーディオインターフェイス](https://music-thcreate.com/steinberg-ur22c/)
     * 各ツマミの説明が丁寧に書いてある
+
+
+[UR22Cオペレーションマニュアル](https://download.steinberg.net/downloads_hardware/UR-C/Manuals/UR22C_Operation_Manual_Japanese.pdf)(pdf)
