@@ -42,6 +42,11 @@ d: -0.7325005531311035
 
 なのでこれであっているっぽい。
 
+ただ！ REG_DWORD は 32bit で格納している値は double (64bit) なので、
+解釈だけでなくサイズでも圧倒的に型違反している。
+
+なので、モダンな言語やライブラリでロードすることが出来ない……。
+
 
 ## アイテムの基本要素を調べる
 
@@ -55,12 +60,12 @@ d: -0.7325005531311035
 | 大きさ                | `ItemSize{X/Y/Z}Slider{n}_h...`        |
 | 装着位置              | `ItemBoneSlider{n}_h..`                |
 | 色(1)                 | `ItemColoir{R/G/B}Slider{n}_h...`      |
-| テクスチャパターン(2) | `ItemTexSlider(1){n}_h...`             |
+| テクスチャパターン(2) | `ItemTexSlider (1){n}_h...`            |
 | 色(2)                 | `ItemColoir{R/G/B/A}Slider(1){n}_h...` |
 | シェイプ(1)           | `ItemShapeSlider{n}_h...`              |
-| シェイプ(2)           | `ItemShapeSlider(1){n}_h...`           |
-| シェイプ(3)           | `ItemShapeSlider(2){n}_h...`           |
-| シェイプ(4)           | `ItemShapeSlider(3){n}_h...`           |
+| シェイプ(2)           | `ItemShapeSlider (1){n}_h...`          |
+| シェイプ(3)           | `ItemShapeSlider (2){n}_h...`          |
+| シェイプ(4)           | `ItemShapeSlider (3){n}_h...`          |
 
 
 
